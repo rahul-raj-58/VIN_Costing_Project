@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales & Operations Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -44,7 +45,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             flex-wrap: wrap;
             gap: 20px;
         }
@@ -67,10 +68,11 @@
         .header-actions {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 10px 16px;
             border: none;
             border-radius: 8px;
             font-weight: 600;
@@ -98,6 +100,114 @@
 
         .btn-secondary:hover {
             background: var(--border-color);
+        }
+
+        .data-load-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: var(--accent-light);
+        }
+
+        .input-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0;
+        }
+
+        .tab-btn {
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        textarea, input[type="file"], input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: monospace;
+            font-size: 0.85em;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        textarea:focus, input[type="file"]:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        input[type="file"] {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
         }
 
         .filters {
@@ -265,12 +375,6 @@
             }
         }
 
-        @media (max-width: 768px) {
-            .chart-card {
-                grid-column: span 1;
-            }
-        }
-
         .card-title {
             font-size: 1.2em;
             font-weight: 700;
@@ -351,26 +455,18 @@
             font-weight: 600;
         }
 
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 400px;
-            flex-direction: column;
-            gap: 20px;
+        .data-status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(99, 102, 241, 0.05);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(99, 102, 241, 0.2);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .data-status strong {
+            color: var(--accent-light);
         }
     </style>
 </head>
@@ -379,13 +475,15 @@
         <div class="header">
             <div class="header-content">
                 <h1>📊 Sales Operations Dashboard</h1>
-                <p>Real-time insights into team performance, enterprise deals, and revenue metrics</p>
+                <p>Real-time insights into team performance and enterprise deals</p>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="downloadData()">📥 Export</button>
-                <button class="btn btn-primary" onclick="reloadData()">🔄 Refresh</button>
+                <button class="btn btn-secondary" onclick="downloadData()">📥 Export CSV</button>
+                <button class="btn btn-primary" onclick="openDataModal()">📤 Load Your Data</button>
             </div>
         </div>
+
+        <div id="messageBox" class="message-box"></div>
 
         <div class="filters">
             <div class="filter-group">
@@ -412,12 +510,50 @@
             </div>
         </div>
 
-        <div id="messageBox" class="message-box"></div>
+        <div id="dashboardContent"></div>
+    </div>
 
-        <div id="dashboardContent">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>Loading dashboard data...</p>
+    <!-- Data Input Modal -->
+    <div id="dataModal" class="data-load-modal" style="display: none;">
+        <div class="modal-content">
+            <h2>📥 Load Your Data</h2>
+            
+            <div class="input-tabs">
+                <button class="tab-btn active" onclick="switchTab('tab-csv')">Paste CSV</button>
+                <button class="tab-btn" onclick="switchTab('tab-file')">Upload File</button>
+                <button class="tab-btn" onclick="switchTab('tab-url')">Metabase URL</button>
+            </div>
+
+            <div id="tab-csv" class="tab-content active">
+                <div class="input-group">
+                    <label>Paste your CSV data here:</label>
+                    <textarea id="csvInput" placeholder="team_name,enterprise_name,contracted_arr,month,sku_count,image_count..."></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" onclick="loadCSVData()">✅ Load CSV</button>
+                    <button class="btn btn-secondary" onclick="closeDataModal()">✕ Close</button>
+                </div>
+            </div>
+
+            <div id="tab-file" class="tab-content">
+                <div class="input-group">
+                    <label>Select CSV file:</label>
+                    <input type="file" id="csvFile" accept=".csv" onchange="loadFileData()">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-secondary" onclick="closeDataModal()">✕ Close</button>
+                </div>
+            </div>
+
+            <div id="tab-url" class="tab-content">
+                <div class="input-group">
+                    <label>Metabase Public URL (add .csv at end):</label>
+                    <input type="text" id="metabaseUrl" placeholder="https://metabase.spyne.ai/public/question/...">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" onclick="loadMetabaseURL()">🔄 Fetch</button>
+                    <button class="btn btn-secondary" onclick="closeDataModal()">✕ Close</button>
+                </div>
             </div>
         </div>
     </div>
@@ -425,130 +561,117 @@
     <script>
         let allData = [];
         let filteredData = [];
-        const CARD_UUID = '1d6e0c0d-ad06-4cfe-8308-ddff05187eca';
-        const METABASE_BASE = 'https://metabase.spyne.ai';
-        const CSV_URL = `${METABASE_BASE}/public/question/${CARD_UUID}.csv`;
 
-        // Show message
+        // Sample data - displayed immediately
+        const sampleCSV = `team_id,team_name,enterprise_id,enterprise_name,products,stage,ob_poc_email,cs_poc_email,contracted_arr,monthly_product_arr,month,sku_count,image_count,cost_per_vin,cost_per_image
+1,Sales Team A,101,Enterprise Alpha,Product X,Active,john@example.com,jane@example.com,250000,20000,2024-01,150,1200,10.50,2.25
+1,Sales Team A,101,Enterprise Alpha,Product X,Active,john@example.com,jane@example.com,250000,22000,2024-02,165,1350,10.50,2.25
+1,Sales Team A,101,Enterprise Alpha,Product X,Active,john@example.com,jane@example.com,250000,24000,2024-03,180,1500,10.50,2.25
+1,Sales Team A,102,Enterprise Beta,Product Y,Active,john@example.com,mike@example.com,180000,15000,2024-01,120,950,9.75,2.10
+1,Sales Team A,102,Enterprise Beta,Product Y,Active,john@example.com,mike@example.com,180000,16500,2024-02,135,1050,9.75,2.10
+2,Sales Team B,103,Enterprise Gamma,Product Z,Prospect,sarah@example.com,alice@example.com,320000,26000,2024-01,200,1600,11.00,2.50
+2,Sales Team B,103,Enterprise Gamma,Product Z,Prospect,sarah@example.com,alice@example.com,320000,28000,2024-02,220,1750,11.00,2.50
+2,Sales Team B,104,Enterprise Delta,Product X,Active,sarah@example.com,bob@example.com,420000,35000,2024-02,280,2100,10.50,2.25
+2,Sales Team B,104,Enterprise Delta,Product X,Active,sarah@example.com,bob@example.com,420000,38000,2024-03,310,2300,10.50,2.25
+3,Sales Team C,105,Enterprise Epsilon,Product Y,Active,mike@example.com,carol@example.com,550000,45000,2024-01,350,2800,9.75,2.10
+3,Sales Team C,106,Enterprise Zeta,Product Z,Prospect,mike@example.com,david@example.com,290000,24000,2024-02,195,1560,11.00,2.50
+3,Sales Team C,107,Enterprise Theta,Product X,Active,mike@example.com,emma@example.com,380000,31000,2024-01,240,1920,10.50,2.25
+1,Sales Team A,108,Enterprise Iota,Product Y,Prospect,john@example.com,frank@example.com,210000,17000,2024-02,140,1120,9.75,2.10
+2,Sales Team B,109,Enterprise Kappa,Product Z,Active,sarah@example.com,grace@example.com,480000,39000,2024-01,320,2560,11.00,2.50
+3,Sales Team C,110,Enterprise Lambda,Product X,Active,mike@example.com,henry@example.com,600000,50000,2024-02,400,3000,10.50,2.25`;
+
+        function openDataModal() {
+            document.getElementById('dataModal').style.display = 'flex';
+        }
+
+        function closeDataModal() {
+            document.getElementById('dataModal').style.display = 'none';
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
         function showMessage(message, type = 'success') {
             const box = document.getElementById('messageBox');
-            box.innerHTML = `<div class="alert alert-${type}">
-                <span>${message}</span>
-            </div>`;
+            box.innerHTML = `<div class="alert alert-${type}"><span>${message}</span></div>`;
             setTimeout(() => box.innerHTML = '', 5000);
         }
 
-        // Parse CSV data
-        function parseCSV(csvText) {
-            const lines = csvText.trim().split('\n');
-            if (lines.length === 0) return [];
-            
-            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-            const rows = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i];
-                if (!line.trim()) continue;
-                
-                // Handle quoted fields
-                const cells = [];
-                let current = '';
-                let insideQuote = false;
-                
-                for (let j = 0; j < line.length; j++) {
-                    const char = line[j];
-                    const nextChar = line[j + 1];
-                    
-                    if (char === '"') {
-                        if (insideQuote && nextChar === '"') {
-                            current += '"';
-                            j++;
-                        } else {
-                            insideQuote = !insideQuote;
-                        }
-                    } else if (char === ',' && !insideQuote) {
-                        cells.push(current.trim());
-                        current = '';
-                    } else {
-                        current += char;
-                    }
-                }
-                cells.push(current.trim());
-                
-                rows.push(cells);
+        function loadCSVData() {
+            const csv = document.getElementById('csvInput').value;
+            if (!csv.trim()) {
+                showMessage('Please paste CSV data', 'error');
+                return;
             }
-            
-            return rows;
+            parseAndRender(csv);
+            closeDataModal();
         }
 
-        // Fetch data from Metabase CSV
-        async function fetchData() {
+        function loadFileData() {
+            const file = document.getElementById('csvFile').files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                parseAndRender(e.target.result);
+                closeDataModal();
+            };
+            reader.readAsText(file);
+        }
+
+        async function loadMetabaseURL() {
+            const url = document.getElementById('metabaseUrl').value;
+            if (!url) {
+                showMessage('Please enter Metabase URL', 'error');
+                return;
+            }
             try {
-                console.log('🚀 Fetching data from Metabase CSV...');
-                console.log('CSV URL:', CSV_URL);
-                
-                const response = await fetch(CSV_URL);
-
-                console.log('Response Status:', response.status);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const csvText = await response.text();
-                console.log('CSV Data length:', csvText.length);
-                console.log('First 500 chars:', csvText.substring(0, 500));
-
-                allData = parseCSV(csvText);
-
-                if (allData.length === 0) {
-                    throw new Error('No data rows found in CSV');
-                }
-
-                console.log(`✅ Loaded ${allData.length} records from CSV`);
-                console.log('Sample row:', allData[0]);
-                
-                filteredData = [...allData];
-                populateFilters();
-                renderDashboard();
-                showMessage(`✅ Dashboard loaded successfully! (${allData.length} records)`, 'success');
-
-            } catch (error) {
-                console.error('❌ Error fetching CSV:', error);
-                showApiError(error.message);
+                const response = await fetch(url);
+                const csv = await response.text();
+                parseAndRender(csv);
+                closeDataModal();
+            } catch (e) {
+                showMessage(`Error fetching: ${e.message}`, 'error');
             }
         }
 
-        // Show API Error
-        function showApiError(errorMsg = '') {
-            document.getElementById('dashboardContent').innerHTML = `
-                <div class="card" style="grid-column: 1/-1; padding: 40px; text-align: center;">
-                    <h2 style="color: #ef4444; margin-bottom: 16px;">⚠️ Connection Error</h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                        Unable to fetch data from Metabase CSV. Please verify:
-                    </p>
-                    <ul style="color: var(--text-secondary); text-align: left; display: inline-block; margin-bottom: 20px; font-size: 0.9em;">
-                        <li>✓ Metabase instance is online: <a href="${METABASE_BASE}" target="_blank" style="color: #818cf8;">${METABASE_BASE}</a></li>
-                        <li>✓ Public CSV URL: <a href="${CSV_URL}" target="_blank" style="color: #818cf8;">View CSV</a></li>
-                        <li>✓ Network connectivity</li>
-                        <li>✓ CSV export is enabled in Metabase</li>
-                    </ul>
-                    ${errorMsg ? `<p style="color: #fca5a5; margin: 15px 0; font-size: 0.85em; font-family: monospace;">Error: ${errorMsg}</p>` : ''}
-                    <button class="btn btn-primary" onclick="fetchData()" style="margin-top: 20px;">🔄 Try Again</button>
-                </div>
-            `;
-            showMessage('Connection failed. Check browser console for details.', 'error');
+        function parseAndRender(csvText) {
+            try {
+                Papa.parse(csvText, {
+                    skipEmptyLines: true,
+                    header: false,
+                    complete: function(results) {
+                        allData = results.data;
+                        if (allData.length < 2) {
+                            showMessage('CSV must have headers and at least 1 data row', 'error');
+                            return;
+                        }
+                        filteredData = [...allData.slice(1)];
+                        populateFilters();
+                        renderDashboard();
+                        showMessage(`✅ Loaded ${filteredData.length} records!`, 'success');
+                    }
+                });
+            } catch (e) {
+                showMessage(`Error parsing CSV: ${e.message}`, 'error');
+            }
         }
 
-        // Populate filter dropdowns
         function populateFilters() {
-            const teams = [...new Set(allData.map(r => r[1]).filter(Boolean))].sort();
-            const enterprises = [...new Set(allData.map(r => r[3]).filter(Boolean))].sort();
-            const months = [...new Set(allData.map(r => r[10]).filter(Boolean))].sort();
+            const teams = [...new Set(filteredData.map(r => r[1]).filter(Boolean))].sort();
+            const ents = [...new Set(filteredData.map(r => r[3]).filter(Boolean))].sort();
+            const months = [...new Set(filteredData.map(r => r[10]).filter(Boolean))].sort();
 
             const teamSel = document.getElementById('teamFilter');
             const entSel = document.getElementById('enterpriseFilter');
             const monthSel = document.getElementById('monthFilter');
+
+            teamSel.innerHTML = '<option value="">All Teams</option>';
+            entSel.innerHTML = '<option value="">All Enterprises</option>';
+            monthSel.innerHTML = '<option value="">All Months</option>';
 
             teams.forEach(t => {
                 const opt = document.createElement('option');
@@ -557,7 +680,7 @@
                 teamSel.appendChild(opt);
             });
 
-            enterprises.forEach(e => {
+            ents.forEach(e => {
                 const opt = document.createElement('option');
                 opt.value = e;
                 opt.textContent = e;
@@ -572,13 +695,12 @@
             });
         }
 
-        // Apply filters
         function applyFilters() {
             const team = document.getElementById('teamFilter').value;
             const ent = document.getElementById('enterpriseFilter').value;
             const month = document.getElementById('monthFilter').value;
 
-            filteredData = allData.filter(row => {
+            filteredData = allData.slice(1).filter(row => {
                 return (!team || row[1] === team) &&
                        (!ent || row[3] === ent) &&
                        (!month || row[10] === month);
@@ -591,11 +713,10 @@
             document.getElementById('teamFilter').value = '';
             document.getElementById('enterpriseFilter').value = '';
             document.getElementById('monthFilter').value = '';
-            filteredData = [...allData];
+            filteredData = [...allData.slice(1)];
             renderDashboard();
         }
 
-        // Calculate KPIs
         function getKPIs() {
             const teams = new Set(filteredData.map(r => r[1]).filter(Boolean));
             const ents = new Set(filteredData.map(r => r[3]).filter(Boolean));
@@ -606,7 +727,6 @@
             return { teams: teams.size, ents: ents.size, arr, skus, images };
         }
 
-        // Get top enterprises
         function getTopEnterprises(limit = 10) {
             const data = {};
             filteredData.forEach(row => {
@@ -620,7 +740,6 @@
                 .slice(0, limit);
         }
 
-        // Get month-wise data
         function getMonthWiseData() {
             const data = {};
             filteredData.forEach(row => {
@@ -634,13 +753,15 @@
             return Object.values(data).sort((a, b) => new Date(a.month) - new Date(b.month));
         }
 
-        // Render dashboard
         function renderDashboard() {
             const kpis = getKPIs();
             const topEnts = getTopEnterprises();
             const monthData = getMonthWiseData();
 
             let html = `
+                <div class="data-status">
+                    📊 Showing <strong>${filteredData.length}</strong> records | <strong>${kpis.teams}</strong> Teams | <strong>${kpis.ents}</strong> Enterprises
+                </div>
                 <div class="dashboard">
                     <div class="card kpi-card">
                         <div class="kpi-header">
@@ -742,14 +863,12 @@
 
             document.getElementById('dashboardContent').innerHTML = html;
 
-            // Render charts
             if (monthData.length > 0) {
                 renderSkuChart(monthData);
                 renderImageChart(monthData);
             }
         }
 
-        // Render SKU Chart
         function renderSkuChart(monthData) {
             const ctx = document.getElementById('skuChart').getContext('2d');
             new Chart(ctx, {
@@ -767,17 +886,14 @@
                         pointRadius: 5,
                         pointBackgroundColor: '#818cf8',
                         pointBorderColor: '#1a1f2e',
-                        pointBorderWidth: 2,
-                        pointHoverRadius: 7
+                        pointBorderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            labels: { color: '#e4e6eb', font: { size: 12 } }
-                        }
+                        legend: { labels: { color: '#e4e6eb' } }
                     },
                     scales: {
                         y: {
@@ -785,16 +901,12 @@
                             ticks: { color: '#8a8d91' },
                             grid: { color: 'rgba(99, 102, 241, 0.1)' }
                         },
-                        x: {
-                            ticks: { color: '#8a8d91' },
-                            grid: { display: false }
-                        }
+                        x: { ticks: { color: '#8a8d91' }, grid: { display: false } }
                     }
                 }
             });
         }
 
-        // Render Image Chart
         function renderImageChart(monthData) {
             const ctx = document.getElementById('imageChart').getContext('2d');
             new Chart(ctx, {
@@ -812,17 +924,14 @@
                         pointRadius: 5,
                         pointBackgroundColor: '#a78bfa',
                         pointBorderColor: '#1a1f2e',
-                        pointBorderWidth: 2,
-                        pointHoverRadius: 7
+                        pointBorderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            labels: { color: '#e4e6eb', font: { size: 12 } }
-                        }
+                        legend: { labels: { color: '#e4e6eb' } }
                     },
                     scales: {
                         y: {
@@ -830,16 +939,12 @@
                             ticks: { color: '#8a8d91' },
                             grid: { color: 'rgba(99, 102, 241, 0.1)' }
                         },
-                        x: {
-                            ticks: { color: '#8a8d91' },
-                            grid: { display: false }
-                        }
+                        x: { ticks: { color: '#8a8d91' }, grid: { display: false } }
                     }
                 }
             });
         }
 
-        // Download data
         function downloadData() {
             if (filteredData.length === 0) {
                 showMessage('No data to download', 'error');
@@ -847,10 +952,8 @@
             }
 
             const csv = [
-                ['Team Name', 'Enterprise', 'Stage', 'Contracted ARR', 'Month', 'SKU Count', 'Image Count'],
-                ...filteredData.map(r => [
-                    r[1], r[3], r[5], r[8], r[10], r[11], r[12]
-                ])
+                ['Team Name', 'Enterprise', 'Contracted ARR', 'Month', 'SKU Count', 'Image Count'],
+                ...filteredData.map(r => [r[1], r[3], r[8], r[10], r[11], r[12]])
             ].map(row => row.map(v => `"${v}"`).join(',')).join('\n');
 
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -859,21 +962,14 @@
             a.href = url;
             a.download = `dashboard_${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
-            showMessage('✅ Data exported successfully!', 'success');
+            showMessage('✅ Data exported!', 'success');
         }
 
-        function reloadData() {
-            document.getElementById('dashboardContent').innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Reloading dashboard...</p>
-                </div>
-            `;
-            fetchData();
-        }
-
-        // Initialize
-        window.addEventListener('load', fetchData);
+        // Load initial sample data on page load
+        window.addEventListener('load', () => {
+            parseAndRender(sampleCSV);
+            showMessage('✅ Sample data loaded! Click "Load Your Data" to add your own.', 'info');
+        });
     </script>
 </body>
 </html>
