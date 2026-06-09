@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise Analytics Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <title>Sales & Operations Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -14,1158 +13,716 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
-            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 0;
-        }
-
-        .dashboard-header {
-            background: rgba(15, 15, 15, 0.8);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 24px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-        }
-
-        .header-content {
-            max-width: 1600px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-title {
-            font-size: 28px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #00d9ff, #0099ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .refresh-btn {
-            background: rgba(0, 217, 255, 0.1);
-            border: 1px solid rgba(0, 217, 255, 0.3);
-            color: #00d9ff;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }
-
-        .refresh-btn:hover {
-            background: rgba(0, 217, 255, 0.2);
-            border-color: rgba(0, 217, 255, 0.5);
+            padding: 20px;
         }
 
         .container {
             max-width: 1600px;
             margin: 0 auto;
-            padding: 24px;
         }
 
-        .loading {
+        .header {
             text-align: center;
-            padding: 60px 20px;
-            font-size: 16px;
-            color: #888;
+            color: white;
+            margin-bottom: 40px;
         }
 
-        .error-message {
-            background: rgba(255, 67, 67, 0.1);
-            border: 1px solid rgba(255, 67, 67, 0.3);
-            color: #ff6b6b;
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .metrics-grid {
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
         }
 
-        .metric-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .card {
+            background: white;
             border-radius: 12px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .metric-card:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(0, 217, 255, 0.3);
-            transform: translateY(-2px);
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
         }
 
-        .metric-label {
-            font-size: 13px;
-            color: #888;
+        .kpi-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-height: 150px;
+        }
+
+        .kpi-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .kpi-label {
+            font-size: 0.95em;
+            color: #666;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            letter-spacing: 1px;
             font-weight: 600;
         }
 
-        .metric-value {
-            font-size: 32px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #00d9ff, #0099ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
+        .kpi-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            opacity: 0.8;
         }
 
-        .metric-change {
-            font-size: 12px;
-            color: #4ade80;
+        .chart-card {
+            grid-column: span 2;
         }
 
-        .chart-section {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            backdrop-filter: blur(10px);
+        @media (max-width: 1200px) {
+            .chart-card {
+                grid-column: span 1;
+            }
         }
 
         .chart-title {
-            font-size: 18px;
+            font-size: 1.3em;
             font-weight: 600;
-            margin-bottom: 20px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .chart-icon {
-            width: 4px;
-            height: 20px;
-            background: linear-gradient(135deg, #00d9ff, #0099ff);
-            border-radius: 2px;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
         }
 
         .chart-container {
             position: relative;
             height: 350px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
-        .table-container {
+        .table-card {
+            grid-column: span 2;
             overflow-x: auto;
-            margin-top: 16px;
         }
 
-        table {
+        .table-card table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: 0.95em;
         }
 
-        th {
-            background: rgba(0, 217, 255, 0.1);
-            color: #00d9ff;
+        .table-card th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             padding: 12px;
             text-align: left;
             font-weight: 600;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             text-transform: uppercase;
-            font-size: 11px;
-            letter-spacing: 0.5px;
+            font-size: 0.85em;
         }
 
-        td {
+        .table-card td {
             padding: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            color: #e0e0e0;
+            border-bottom: 1px solid #eee;
+            color: #555;
         }
 
-        tr:hover {
-            background: rgba(255, 255, 255, 0.02);
+        .table-card tr:hover {
+            background-color: #f8f9ff;
         }
 
-        .positive {
-            color: #4ade80;
+        .table-card tr:last-child td {
+            border-bottom: none;
         }
 
-        .negative {
-            color: #ff6b6b;
-        }
-
-        .neutral {
-            color: #fbbf24;
-        }
-
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 12px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-        }
-
-        .grid-2 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(48%, 1fr));
-            gap: 24px;
-        }
-
-        @media (max-width: 1200px) {
-            .grid-2 {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .footer {
+        .rank {
+            font-weight: bold;
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            min-width: 30px;
             text-align: center;
-            padding: 32px 24px;
-            color: #666;
-            font-size: 12px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: inline-block;
         }
 
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-            margin-top: 16px;
-        }
-
-        .stat-item {
-            background: rgba(0, 217, 255, 0.05);
-            border: 1px solid rgba(0, 217, 255, 0.2);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 13px;
-        }
-
-        .stat-label {
-            color: #888;
-            font-size: 11px;
-            margin-bottom: 4px;
-        }
-
-        .stat-value {
-            color: #00d9ff;
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            font-size: 1.2em;
+            color: white;
         }
 
         .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(0, 217, 255, 0.3);
-            border-top-color: #00d9ff;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
             border-radius: 50%;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
-            margin-right: 8px;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .filter-group select {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            grid-column: span 1;
+            align-items: flex-end;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #c00;
+        }
+
+        .success {
+            background: #efe;
+            color: #0c0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #0c0;
+        }
+
+        .metric-small {
+            font-size: 0.85em;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .grid-2 {
+            grid-column: span 1;
+        }
+
+        @media (max-width: 768px) {
+            .chart-card,
+            .table-card {
+                grid-column: span 1;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .dashboard {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            }
         }
     </style>
 </head>
 <body>
-    <div class="dashboard-header">
-        <div class="header-content">
-            <div class="header-title">📊 Enterprise Analytics Dashboard</div>
-            <div style="display: flex; gap: 12px;">
-                <button class="refresh-btn" onclick="loadDashboard()">
-                    🔄 Refresh Data
-                </button>
-                <button class="refresh-btn" onclick="document.getElementById('dataInputModal').style.display='flex'" style="background: rgba(252, 176, 64, 0.1); border-color: rgba(252, 176, 64, 0.3); color: #fcb040;">
-                    📥 Load Data
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Data Input Modal -->
-    <div id="dataInputModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
-        <div style="background: rgba(20, 20, 20, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: #fff; margin: 0;">Load Data</h2>
-                <button onclick="document.getElementById('dataInputModal').style.display='none'" style="background: none; border: none; color: #888; font-size: 20px; cursor: pointer;">✕</button>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <h3 style="color: #00d9ff; margin-bottom: 12px;">Option 1: Paste JSON Data</h3>
-                <textarea id="jsonDataInput" placeholder='Paste your JSON array here. Example: [{"enterprise_name": "Acme Corp", "contracted_arr": 100000}, ...]' style="width: 100%; height: 120px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; border-radius: 6px; font-family: monospace; font-size: 12px;"></textarea>
-                <button onclick="loadJSONData()" style="margin-top: 12px; padding: 10px 20px; background: rgba(0, 217, 255, 0.1); border: 1px solid rgba(0, 217, 255, 0.3); color: #00d9ff; border-radius: 6px; cursor: pointer;">Load JSON</button>
-            </div>
-
-            <div style="margin-bottom: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-                <h3 style="color: #00d9ff; margin-bottom: 12px;">Option 2: Upload CSV File</h3>
-                <input type="file" id="csvFileInput" accept=".csv" style="padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; border-radius: 6px; width: 100%;">
-                <button onclick="loadCSVData()" style="margin-top: 12px; padding: 10px 20px; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); color: #4ade80; border-radius: 6px; cursor: pointer;">Load CSV</button>
-            </div>
-
-            <div style="margin-bottom: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-                <h3 style="color: #00d9ff; margin-bottom: 12px;">Option 3: Direct Metabase Link</h3>
-                <input type="text" id="metabaseUrl" placeholder="https://metabase.spyne.ai/public/question/YOUR_ID" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; border-radius: 6px;" value="https://metabase.spyne.ai/public/question/1d6e0c0d-ad06-4cfe-8308-ddff05187eca">
-                <button onclick="extractMetabaseID()" style="margin-top: 12px; padding: 10px 20px; background: rgba(252, 176, 64, 0.1); border: 1px solid rgba(252, 176, 64, 0.3); color: #fcb040; border-radius: 6px; cursor: pointer; width: 100%;">Extract & Load from URL</button>
-            </div>
-
-            <div style="color: #888; font-size: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
-                <p><strong>Troubleshooting Tips:</strong></p>
-                <ul style="margin: 8px 0; padding-left: 20px;">
-                    <li>If API fails, export your Metabase question as CSV and upload here</li>
-                    <li>Or copy the question results as JSON</li>
-                    <li>Check that your Metabase server allows cross-origin requests</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
     <div class="container">
-        <div id="loading" class="loading" style="display:none;">
-            <span class="spinner"></span>Loading data from Metabase...
+        <div class="header">
+            <h1>📊 Sales & Operations Dashboard</h1>
+            <p>Real-time insights from your sales pipeline</p>
         </div>
 
-        <div id="error" class="error-message" style="display:none;"></div>
-
-        <!-- Key Metrics Section -->
-        <div id="metrics" class="metrics-grid" style="display:none;">
-            <div class="metric-card">
-                <div class="metric-label">Total ARR</div>
-                <div class="metric-value" id="totalArr">$0</div>
-                <div class="metric-change">Top Currency</div>
+        <div class="filters">
+            <div class="filter-group">
+                <label for="teamFilter">Team Name</label>
+                <select id="teamFilter">
+                    <option value="">All Teams</option>
+                </select>
             </div>
-            <div class="metric-card">
-                <div class="metric-label">Enterprises</div>
-                <div class="metric-value" id="enterpriseCount">0</div>
-                <div class="metric-change">Unique Organizations</div>
+            <div class="filter-group">
+                <label for="enterpriseFilter">Enterprise</label>
+                <select id="enterpriseFilter">
+                    <option value="">All Enterprises</option>
+                </select>
             </div>
-            <div class="metric-card">
-                <div class="metric-label">Avg Cost/VIN</div>
-                <div class="metric-value" id="avgCostVin">$0</div>
-                <div class="metric-change">All Accounts</div>
+            <div class="filter-group">
+                <label for="monthFilter">Month</label>
+                <select id="monthFilter">
+                    <option value="">All Months</option>
+                </select>
             </div>
-            <div class="metric-card">
-                <div class="metric-label">Total SKUs</div>
-                <div class="metric-value" id="totalSkus">0</div>
-                <div class="metric-change">Tracked Items</div>
-            </div>
-        </div>
-
-        <!-- Top Enterprises by ARR -->
-        <div class="chart-section" id="arrSection" style="display:none;">
-            <div class="chart-title">
-                <div class="chart-icon"></div>
-                Top 15 Enterprises by Contracted ARR
-            </div>
-            <div class="chart-container">
-                <canvas id="arrChart" role="img" aria-label="Bar chart of top enterprises by ARR"></canvas>
-            </div>
-            <div id="arrTable"></div>
-        </div>
-
-        <!-- SKU Count Trends -->
-        <div class="grid-2">
-            <div class="chart-section" id="skuTrendSection" style="display:none;">
-                <div class="chart-title">
-                    <div class="chart-icon"></div>
-                    Monthly SKU Count Trend
-                </div>
-                <div class="chart-container">
-                    <canvas id="skuChart" role="img" aria-label="Line chart of monthly SKU counts"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-section" id="imageCountSection" style="display:none;">
-                <div class="chart-title">
-                    <div class="chart-icon"></div>
-                    Monthly Image Count Trend
-                </div>
-                <div class="chart-container">
-                    <canvas id="imageChart" role="img" aria-label="Line chart of monthly image counts"></canvas>
-                </div>
+            <div class="btn-group">
+                <button onclick="applyFilters()">Apply Filters</button>
+                <button onclick="resetFilters()" style="background: #999;">Reset</button>
             </div>
         </div>
 
-        <!-- Cost Per VIN Analysis -->
-        <div class="chart-section" id="costVinSection" style="display:none;">
-            <div class="chart-title">
-                <div class="chart-icon"></div>
-                Cost Per VIN Analysis - Overutilization vs Underutilization
-            </div>
-            <div class="chart-container">
-                <canvas id="costVinChart" role="img" aria-label="Scatter chart of cost per VIN vs volume"></canvas>
-            </div>
-            <div class="stats-row" id="costVinStats"></div>
-        </div>
+        <div id="messageBox"></div>
 
-        <!-- POC Email Analysis -->
-        <div class="grid-2">
-            <div class="chart-section" id="obPocSection" style="display:none;">
-                <div class="chart-title">
-                    <div class="chart-icon"></div>
-                    Top OB POC Contacts - Account Distribution
-                </div>
-                <div class="chart-container">
-                    <canvas id="obPocChart" role="img" aria-label="Bar chart of OB POC email accounts"></canvas>
-                </div>
-                <div id="obPocTable"></div>
-            </div>
-
-            <div class="chart-section" id="csPocSection" style="display:none;">
-                <div class="chart-title">
-                    <div class="chart-icon"></div>
-                    Top CS POC Contacts - Account Distribution
-                </div>
-                <div class="chart-container">
-                    <canvas id="csPocChart" role="img" aria-label="Bar chart of CS POC email accounts"></canvas>
-                </div>
-                <div id="csPocTable"></div>
+        <div id="dashboardContent">
+            <div class="loading">
+                <div class="spinner"></div>
+                <span>Loading dashboard data...</span>
             </div>
         </div>
-
-        <!-- Team Analysis -->
-        <div class="chart-section" id="teamSection" style="display:none;">
-            <div class="chart-title">
-                <div class="chart-icon"></div>
-                Performance by Team - ARR & Volume
-            </div>
-            <div class="chart-container">
-                <canvas id="teamChart" role="img" aria-label="Bar chart of performance by team"></canvas>
-            </div>
-            <div id="teamTable"></div>
-        </div>
-
-        <!-- Utilization Status -->
-        <div class="chart-section" id="utilizationSection" style="display:none;">
-            <div class="chart-title">
-                <div class="chart-icon"></div>
-                Account Utilization Status Summary
-            </div>
-            <div class="stats-row" id="utilizationStats"></div>
-            <div id="utilizationTable" class="table-container"></div>
-        </div>
-    </div>
-
-    <div class="footer">
-        <p>Dashboard powered by Metabase | Last updated: <span id="lastUpdate">--</span> | Auto-refresh every 5 minutes</p>
     </div>
 
     <script>
-        let METABASE_ID = '1d6e0c0d-ad06-4cfe-8308-ddff05187eca';
-        
-        // Multiple endpoints to try
-        let ENDPOINTS = [
-            `https://metabase.spyne.ai/api/public/card/${METABASE_ID}/query`,
-            `https://metabase.spyne.ai/public/question/${METABASE_ID}.json`,
-            `https://metabase.spyne.ai/public/question/${METABASE_ID}/query`
-        ];
-
         let allData = [];
-        let charts = {};
+        let filteredData = [];
 
-        async function loadDashboard() {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('error').style.display = 'none';
-            
-            try {
-                await fetchData();
-                processAndVisualize();
-                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-                
-                // Auto-refresh every 5 minutes
-                setTimeout(loadDashboard, 5 * 60 * 1000);
-            } catch (error) {
-                showError(error.message);
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
+        const METABASE_URL = 'https://metabase.spyne.ai/api/public/card/1d6e0c0d-ad06-4cfe-8308-ddff05187eca/query';
 
+        // Fetch data from Metabase
         async function fetchData() {
-            let lastError = null;
-
-            // Try multiple methods
-            for (let endpoint of ENDPOINTS) {
-                try {
-                    console.log('Trying endpoint:', endpoint);
-                    const response = await fetch(endpoint, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                        credentials: 'omit'
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log('Success with endpoint:', endpoint, data);
-                        
-                        // Parse response based on structure
-                        if (data.data) {
-                            allData = Array.isArray(data.data) ? data.data : data.data.rows || [];
-                        } else if (data.rows) {
-                            allData = data.rows;
-                        } else if (Array.isArray(data)) {
-                            allData = data;
-                        } else {
-                            console.warn('Unexpected data structure:', data);
-                            allData = [];
-                        }
-
-                        if (allData.length > 0) {
-                            return; // Success
-                        }
-                    }
-                } catch (error) {
-                    console.warn('Endpoint failed:', endpoint, error.message);
-                    lastError = error;
-                }
-            }
-
-            // If all endpoints failed, provide detailed error
-            if (allData.length === 0) {
-                throw new Error(
-                    `Unable to fetch data from Metabase. Please ensure:\n` +
-                    `1. The public link is accessible: ${METABASE_URL}\n` +
-                    `2. You're not blocked by CORS\n` +
-                    `3. The Metabase server is online\n\n` +
-                    `Last error: ${lastError?.message || 'Unknown'}`
-                );
-            }
-        }
-
-        function processAndVisualize() {
-            // Show all sections
-            document.getElementById('metrics').style.display = 'grid';
-            document.getElementById('arrSection').style.display = 'block';
-            document.getElementById('skuTrendSection').style.display = 'block';
-            document.getElementById('imageCountSection').style.display = 'block';
-            document.getElementById('costVinSection').style.display = 'block';
-            document.getElementById('obPocSection').style.display = 'block';
-            document.getElementById('csPocSection').style.display = 'block';
-            document.getElementById('teamSection').style.display = 'block';
-            document.getElementById('utilizationSection').style.display = 'block';
-
-            // Process metrics
-            updateMetrics();
-
-            // Create visualizations
-            createARRChart();
-            createSKUTrendChart();
-            createImageTrendChart();
-            createCostVinChart();
-            createPOCCharts();
-            createTeamChart();
-            createUtilizationAnalysis();
-        }
-
-        function updateMetrics() {
-            let totalArr = 0;
-            let enterpriseSet = new Set();
-            let costPerVinValues = [];
-            let totalSkus = 0;
-
-            allData.forEach(row => {
-                // Calculate from flexible column names
-                const arrValue = extractNumericValue(row, ['contracted_arr', 'arr', 'revenue']);
-                if (arrValue) totalArr += arrValue;
-                
-                const enterprise = extractStringValue(row, ['enterprise_name', 'enterprise', 'company']);
-                if (enterprise) enterpriseSet.add(enterprise);
-                
-                const costVin = extractNumericValue(row, ['cost_per_vin', 'cost_vin']);
-                if (costVin) costPerVinValues.push(costVin);
-                
-                const skuCount = extractNumericValue(row, ['sku_count', 'sku', 'quantity']);
-                if (skuCount) totalSkus += skuCount;
-            });
-
-            document.getElementById('totalArr').textContent = '$' + formatNumber(totalArr);
-            document.getElementById('enterpriseCount').textContent = enterpriseSet.size;
-            document.getElementById('avgCostVin').textContent = '$' + formatNumber(
-                costPerVinValues.length > 0 ? costPerVinValues.reduce((a, b) => a + b) / costPerVinValues.length : 0
-            );
-            document.getElementById('totalSkus').textContent = formatNumber(totalSkus);
-        }
-
-        function createARRChart() {
-            const arrData = allData
-                .filter(row => extractNumericValue(row, ['contracted_arr', 'arr', 'revenue']))
-                .map(row => ({
-                    enterprise: extractStringValue(row, ['enterprise_name', 'enterprise', 'company']) || 'Unknown',
-                    arr: extractNumericValue(row, ['contracted_arr', 'arr', 'revenue']) || 0,
-                    team: extractStringValue(row, ['apld.team_name', 'team_name', 'team']) || 'Unassigned',
-                    poc: extractStringValue(row, ['ob_poc_email', 'poc_email', 'email']) || 'Unassigned'
-                }))
-                .sort((a, b) => b.arr - a.arr)
-                .slice(0, 15);
-
-            const labels = arrData.map(d => d.enterprise.substring(0, 20));
-            const values = arrData.map(d => d.arr);
-
-            createChart('arrChart', 'bar', {
-                labels: labels,
-                datasets: [{
-                    label: 'Contracted ARR ($)',
-                    data: values,
-                    backgroundColor: 'rgba(0, 217, 255, 0.6)',
-                    borderColor: 'rgba(0, 217, 255, 1)',
-                    borderWidth: 1
-                }]
-            }, {
-                indexAxis: 'y',
-                scales: {
-                    x: {
-                        ticks: {
-                            callback: v => '$' + (v / 1000000).toFixed(1) + 'M'
-                        }
-                    }
-                }
-            });
-
-            // Create table
-            let tableHtml = '<table><thead><tr><th>Enterprise</th><th>ARR</th><th>Team</th><th>POC</th></tr></thead><tbody>';
-            arrData.forEach(d => {
-                tableHtml += `<tr><td>${d.enterprise}</td><td class="positive">$${formatNumber(d.arr)}</td><td>${d.team}</td><td>${d.poc.substring(0, 30)}</td></tr>`;
-            });
-            tableHtml += '</tbody></table>';
-            document.getElementById('arrTable').innerHTML = tableHtml;
-        }
-
-        function createSKUTrendChart() {
-            const monthlyData = {};
-            
-            allData.forEach(row => {
-                const date = extractDateValue(row);
-                const month = date ? date.format('YYYY-MM') : 'Unknown';
-                const skuCount = extractNumericValue(row, ['sku_count', 'sku', 'quantity']) || 0;
-                
-                if (!monthlyData[month]) monthlyData[month] = 0;
-                monthlyData[month] += skuCount;
-            });
-
-            const sorted = Object.entries(monthlyData).sort();
-            
-            createChart('skuChart', 'line', {
-                labels: sorted.map(d => d[0]),
-                datasets: [{
-                    label: 'Monthly SKU Count',
-                    data: sorted.map(d => d[1]),
-                    borderColor: 'rgba(0, 217, 255, 1)',
-                    backgroundColor: 'rgba(0, 217, 255, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            });
-        }
-
-        function createImageTrendChart() {
-            const monthlyData = {};
-            
-            allData.forEach(row => {
-                const date = extractDateValue(row);
-                const month = date ? date.format('YYYY-MM') : 'Unknown';
-                const imageCount = extractNumericValue(row, ['image_count', 'images', 'image']) || 0;
-                
-                if (!monthlyData[month]) monthlyData[month] = 0;
-                monthlyData[month] += imageCount;
-            });
-
-            const sorted = Object.entries(monthlyData).sort();
-            
-            createChart('imageChart', 'line', {
-                labels: sorted.map(d => d[0]),
-                datasets: [{
-                    label: 'Monthly Image Count',
-                    data: sorted.map(d => d[1]),
-                    borderColor: 'rgba(252, 176, 64, 1)',
-                    backgroundColor: 'rgba(252, 176, 64, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            });
-        }
-
-        function createCostVinChart() {
-            const scatter = allData
-                .filter(row => {
-                    const cost = extractNumericValue(row, ['cost_per_vin', 'cost_vin']);
-                    const volume = extractNumericValue(row, ['sku_count', 'sku', 'volume']);
-                    return cost && volume;
-                })
-                .map(row => ({
-                    x: extractNumericValue(row, ['sku_count', 'sku', 'volume']),
-                    y: extractNumericValue(row, ['cost_per_vin', 'cost_vin']),
-                    enterprise: extractStringValue(row, ['enterprise_name', 'enterprise']) || 'Unknown'
-                }));
-
-            const avgCost = scatter.reduce((sum, d) => sum + d.y, 0) / scatter.length;
-            const avgVolume = scatter.reduce((sum, d) => sum + d.x, 0) / scatter.length;
-
-            const overutilized = scatter.filter(d => d.y < avgCost && d.x > avgVolume).length;
-            const underutilized = scatter.filter(d => d.y > avgCost && d.x < avgVolume).length;
-            const balanced = scatter.filter(d => 
-                (d.y >= avgCost * 0.9 && d.y <= avgCost * 1.1) || 
-                (d.x >= avgVolume * 0.9 && d.x <= avgVolume * 1.1)
-            ).length;
-
-            createChart('costVinChart', 'scatter', {
-                datasets: [
-                    {
-                        label: 'Cost per VIN Distribution',
-                        data: scatter,
-                        backgroundColor: scatter.map(d => 
-                            d.y < avgCost ? 'rgba(74, 222, 128, 0.6)' : 
-                            d.y > avgCost * 1.2 ? 'rgba(255, 107, 107, 0.6)' : 
-                            'rgba(251, 191, 36, 0.6)'
-                        ),
-                        borderColor: scatter.map(d => 
-                            d.y < avgCost ? 'rgba(74, 222, 128, 1)' : 
-                            d.y > avgCost * 1.2 ? 'rgba(255, 107, 107, 1)' : 
-                            'rgba(251, 191, 36, 1)'
-                        )
-                    }
-                ]
-            });
-
-            let statsHtml = `
-                <div class="stat-item">
-                    <div class="stat-label">Overutilized</div>
-                    <div class="stat-value positive">${overutilized} accounts</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Underutilized</div>
-                    <div class="stat-value negative">${underutilized} accounts</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Balanced</div>
-                    <div class="stat-value neutral">${balanced} accounts</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Average Cost/VIN</div>
-                    <div class="stat-value">$${formatNumber(avgCost)}</div>
-                </div>
-            `;
-            document.getElementById('costVinStats').innerHTML = statsHtml;
-        }
-
-        function createPOCCharts() {
-            const obPocData = {};
-            const csPocData = {};
-
-            allData.forEach(row => {
-                const obPoc = extractStringValue(row, ['ob_poc_email', 'ob_poc', 'poc_email']);
-                const csPoc = extractStringValue(row, ['cs_poc_email', 'cs_poc']);
-                const enterprise = extractStringValue(row, ['enterprise_name', 'enterprise']);
-
-                if (obPoc && enterprise) {
-                    obPocData[obPoc] = (obPocData[obPoc] || 0) + 1;
-                }
-                if (csPoc && enterprise) {
-                    csPocData[csPoc] = (csPocData[csPoc] || 0) + 1;
-                }
-            });
-
-            const obTop = Object.entries(obPocData)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 12);
-            
-            const csTop = Object.entries(csPocData)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 12);
-
-            createChart('obPocChart', 'bar', {
-                labels: obTop.map(d => d[0].substring(0, 20)),
-                datasets: [{
-                    label: 'Accounts',
-                    data: obTop.map(d => d[1]),
-                    backgroundColor: 'rgba(0, 217, 255, 0.6)',
-                    borderColor: 'rgba(0, 217, 255, 1)',
-                    borderWidth: 1
-                }]
-            });
-
-            createChart('csPocChart', 'bar', {
-                labels: csTop.map(d => d[0].substring(0, 20)),
-                datasets: [{
-                    label: 'Accounts',
-                    data: csTop.map(d => d[1]),
-                    backgroundColor: 'rgba(74, 222, 128, 0.6)',
-                    borderColor: 'rgba(74, 222, 128, 1)',
-                    borderWidth: 1
-                }]
-            });
-
-            // Tables
-            let obTable = '<table><thead><tr><th>OB POC Email</th><th>Accounts</th></tr></thead><tbody>';
-            obTop.forEach(d => {
-                obTable += `<tr><td>${d[0]}</td><td class="positive">${d[1]}</td></tr>`;
-            });
-            obTable += '</tbody></table>';
-            document.getElementById('obPocTable').innerHTML = obTable;
-
-            let csTable = '<table><thead><tr><th>CS POC Email</th><th>Accounts</th></tr></thead><tbody>';
-            csTop.forEach(d => {
-                csTable += `<tr><td>${d[0]}</td><td class="positive">${d[1]}</td></tr>`;
-            });
-            csTable += '</tbody></table>';
-            document.getElementById('csPocTable').innerHTML = csTable;
-        }
-
-        function createTeamChart() {
-            const teamData = {};
-
-            allData.forEach(row => {
-                const team = extractStringValue(row, ['apld.team_name', 'team_name', 'team']) || 'Unassigned';
-                const arr = extractNumericValue(row, ['contracted_arr', 'arr', 'revenue']) || 0;
-                const skuCount = extractNumericValue(row, ['sku_count', 'sku', 'volume']) || 0;
-
-                if (!teamData[team]) {
-                    teamData[team] = { arr: 0, sku: 0, count: 0 };
-                }
-                teamData[team].arr += arr;
-                teamData[team].sku += skuCount;
-                teamData[team].count++;
-            });
-
-            const sorted = Object.entries(teamData)
-                .map(([name, data]) => ({ name, ...data }))
-                .sort((a, b) => b.arr - a.arr);
-
-            createChart('teamChart', 'bar', {
-                labels: sorted.map(d => d.name),
-                datasets: [
-                    {
-                        label: 'ARR ($M)',
-                        data: sorted.map(d => d.arr / 1000000),
-                        backgroundColor: 'rgba(0, 217, 255, 0.6)',
-                        borderColor: 'rgba(0, 217, 255, 1)',
-                        borderWidth: 1,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'SKU Count (K)',
-                        data: sorted.map(d => d.sku / 1000),
-                        backgroundColor: 'rgba(74, 222, 128, 0.6)',
-                        borderColor: 'rgba(74, 222, 128, 1)',
-                        borderWidth: 1,
-                        yAxisID: 'y1'
-                    }
-                ]
-            }, {
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'ARR ($M)' } },
-                    y1: { position: 'right', title: { display: true, text: 'SKU Count (K)' } }
-                }
-            });
-
-            let table = '<table><thead><tr><th>Team</th><th>ARR</th><th>SKU Count</th><th>Accounts</th></tr></thead><tbody>';
-            sorted.forEach(d => {
-                table += `<tr><td>${d.name}</td><td class="positive">$${formatNumber(d.arr)}</td><td>${formatNumber(d.sku)}</td><td>${d.count}</td></tr>`;
-            });
-            table += '</tbody></table>';
-            document.getElementById('teamTable').innerHTML = table;
-        }
-
-        function createUtilizationAnalysis() {
-            const costPerVinValues = allData
-                .map(row => extractNumericValue(row, ['cost_per_vin', 'cost_vin']))
-                .filter(v => v);
-            
-            const avgCost = costPerVinValues.reduce((a, b) => a + b, 0) / costPerVinValues.length;
-            
-            const overutilizedAccounts = allData.filter(row => {
-                const cost = extractNumericValue(row, ['cost_per_vin', 'cost_vin']);
-                return cost && cost < avgCost * 0.8;
-            });
-
-            const underutilizedAccounts = allData.filter(row => {
-                const cost = extractNumericValue(row, ['cost_per_vin', 'cost_vin']);
-                return cost && cost > avgCost * 1.3;
-            });
-
-            const optimizedAccounts = allData.filter(row => {
-                const cost = extractNumericValue(row, ['cost_per_vin', 'cost_vin']);
-                return cost && cost >= avgCost * 0.8 && cost <= avgCost * 1.3;
-            });
-
-            let statsHtml = `
-                <div class="stat-item">
-                    <div class="stat-label">Overutilized Accounts</div>
-                    <div class="stat-value positive">${overutilizedAccounts.length}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Underutilized Accounts</div>
-                    <div class="stat-value negative">${underutilizedAccounts.length}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Optimally Utilized</div>
-                    <div class="stat-value neutral">${optimizedAccounts.length}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Utilization Rate</div>
-                    <div class="stat-value">${((optimizedAccounts.length / (allData.length || 1)) * 100).toFixed(1)}%</div>
-                </div>
-            `;
-            document.getElementById('utilizationStats').innerHTML = statsHtml;
-
-            // Top underutilized
-            let tableHtml = '<h4 style="color: #ff6b6b; margin-top: 16px; margin-bottom: 8px;">🔴 Top Underutilized Accounts</h4>';
-            tableHtml += '<table><thead><tr><th>Enterprise</th><th>Cost/VIN</th><th>Status</th></tr></thead><tbody>';
-            
-            underutilizedAccounts.slice(0, 10).forEach(row => {
-                const enterprise = extractStringValue(row, ['enterprise_name', 'enterprise']);
-                const cost = extractNumericValue(row, ['cost_per_vin', 'cost_vin']);
-                tableHtml += `<tr><td>${enterprise}</td><td class="negative">$${formatNumber(cost)}</td><td>Below Average</td></tr>`;
-            });
-            tableHtml += '</tbody></table>';
-
-            // Top overutilized
-            tableHtml += '<h4 style="color: #4ade80; margin-top: 16px; margin-bottom: 8px;">🟢 Top Overutilized Accounts (Opportunities)</h4>';
-            tableHtml += '<table><thead><tr><th>Enterprise</th><th>Cost/VIN</th><th>Status</th></tr></thead><tbody>';
-            
-            overutilizedAccounts.slice(0, 10).forEach(row => {
-                const enterprise = extractStringValue(row, ['enterprise_name', 'enterprise']);
-                const cost = extractNumericValue(row, ['cost_per_vin', 'cost_vin']);
-                tableHtml += `<tr><td>${enterprise}</td><td class="positive">$${formatNumber(cost)}</td><td>Premium User</td></tr>`;
-            });
-            tableHtml += '</tbody></table>';
-
-            document.getElementById('utilizationTable').innerHTML = tableHtml;
-        }
-
-        function createChart(canvasId, type, data, customOptions = {}) {
-            const ctx = document.getElementById(canvasId);
-            if (!ctx) return;
-
-            // Destroy existing chart
-            if (charts[canvasId]) {
-                charts[canvasId].destroy();
-            }
-
-            const options = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        labels: {
-                            color: '#e0e0e0',
-                            boxWidth: 10,
-                            font: { size: 12 }
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#00d9ff',
-                        bodyColor: '#e0e0e0',
-                        borderColor: 'rgba(0, 217, 255, 0.3)',
-                        borderWidth: 1
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: { color: '#888', font: { size: 11 } },
-                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
-                    },
-                    y: {
-                        ticks: { color: '#888', font: { size: 11 } },
-                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
-                    }
-                },
-                ...customOptions
-            };
-
-            charts[canvasId] = new Chart(ctx, {
-                type: type,
-                data: data,
-                options: options
-            });
-        }
-
-        function extractNumericValue(row, keys) {
-            for (let key of keys) {
-                const val = row[key];
-                if (val !== undefined && val !== null) {
-                    const num = parseFloat(val);
-                    return !isNaN(num) ? num : null;
-                }
-            }
-            return null;
-        }
-
-        function extractStringValue(row, keys) {
-            for (let key of keys) {
-                const val = row[key];
-                if (val && typeof val === 'string' && val.trim()) {
-                    return val.trim();
-                }
-            }
-            return null;
-        }
-
-        function extractDateValue(row) {
-            const keys = ['date', 'created_at', 'updated_at', 'month', 'created_date'];
-            for (let key of keys) {
-                const val = row[key];
-                if (val) {
-                    const m = moment(val);
-                    if (m.isValid()) return m;
-                }
-            }
-            return null;
-        }
-
-        function formatNumber(num) {
-            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
-            return Math.round(num).toString();
-        }
-
-        function showError(message) {
-            document.getElementById('error').textContent = '⚠️ ' + message;
-            document.getElementById('error').style.display = 'block';
-        }
-
-        function loadJSONData() {
             try {
-                const jsonText = document.getElementById('jsonDataInput').value.trim();
-                if (!jsonText) {
-                    alert('Please paste JSON data');
-                    return;
+                const response = await fetch(METABASE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({})
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
-                allData = JSON.parse(jsonText);
-                if (!Array.isArray(allData)) {
-                    throw new Error('JSON must be an array of objects');
-                }
+
+                const result = await response.json();
+                allData = result.data?.rows || [];
                 
                 if (allData.length === 0) {
-                    throw new Error('JSON array is empty');
+                    showMessage('No data available from Metabase', 'error');
+                    return;
                 }
-                
-                document.getElementById('dataInputModal').style.display = 'none';
-                processAndVisualize();
-                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-                showSuccess(`Loaded ${allData.length} records from JSON`);
+
+                filteredData = allData;
+                populateFilters();
+                renderDashboard();
             } catch (error) {
-                alert('Error loading JSON: ' + error.message);
+                console.error('Error fetching data:', error);
+                showMessage(`Error loading data: ${error.message}. Please check your Metabase connection.`, 'error');
+                document.getElementById('dashboardContent').innerHTML = `
+                    <div class="error">
+                        <strong>⚠️ Connection Error</strong><br>
+                        Unable to fetch data from Metabase. Make sure:<br>
+                        1. The Metabase instance is accessible<br>
+                        2. The public link is valid<br>
+                        3. Your browser allows cross-origin requests<br>
+                        Error: ${error.message}
+                    </div>
+                `;
             }
         }
 
-        function loadCSVData() {
-            const file = document.getElementById('csvFileInput').files[0];
-            if (!file) {
-                alert('Please select a CSV file');
-                return;
-            }
+        // Populate filter dropdowns
+        function populateFilters() {
+            const teams = [...new Set(allData.map(r => r[1]).filter(Boolean))].sort();
+            const enterprises = [...new Set(allData.map(r => r[3]).filter(Boolean))].sort();
+            const months = [...new Set(allData.map(r => r[10]).filter(Boolean))].sort();
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const csv = e.target.result;
-                    const lines = csv.trim().split('\n');
-                    
-                    if (lines.length < 2) {
-                        throw new Error('CSV must have headers and at least one row');
-                    }
+            const teamSelect = document.getElementById('teamFilter');
+            teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team;
+                option.textContent = team;
+                teamSelect.appendChild(option);
+            });
 
-                    const headers = lines[0].split(',').map(h => h.trim());
-                    allData = [];
+            const enterpriseSelect = document.getElementById('enterpriseFilter');
+            enterprises.forEach(ent => {
+                const option = document.createElement('option');
+                option.value = ent;
+                option.textContent = ent;
+                enterpriseSelect.appendChild(option);
+            });
 
-                    for (let i = 1; i < lines.length; i++) {
-                        const values = lines[i].split(',').map(v => v.trim());
-                        const row = {};
-                        
-                        headers.forEach((header, index) => {
-                            let value = values[index] || '';
-                            // Try to parse as number
-                            if (value && !isNaN(value) && value !== '') {
-                                value = parseFloat(value);
-                            }
-                            row[header] = value;
-                        });
-                        
-                        allData.push(row);
-                    }
-
-                    document.getElementById('dataInputModal').style.display = 'none';
-                    processAndVisualize();
-                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-                    showSuccess(`Loaded ${allData.length} records from CSV`);
-                } catch (error) {
-                    alert('Error loading CSV: ' + error.message);
-                }
-            };
-            reader.readAsText(file);
+            const monthSelect = document.getElementById('monthFilter');
+            months.forEach(month => {
+                const option = document.createElement('option');
+                option.value = month;
+                option.textContent = month;
+                monthSelect.appendChild(option);
+            });
         }
 
-        function extractMetabaseID() {
-            try {
-                const url = document.getElementById('metabaseUrl').value.trim();
-                const match = url.match(/\/([a-f0-9\-]{36})\/?$/);
-                
-                if (!match) {
-                    throw new Error('Invalid Metabase URL format');
-                }
+        // Apply filters
+        function applyFilters() {
+            const team = document.getElementById('teamFilter').value;
+            const enterprise = document.getElementById('enterpriseFilter').value;
+            const month = document.getElementById('monthFilter').value;
 
-                const questionId = match[1];
-                METABASE_ID = questionId;
-                ENDPOINTS[0] = `https://metabase.spyne.ai/api/public/card/${METABASE_ID}/query`;
-                ENDPOINTS[1] = `https://metabase.spyne.ai/public/question/${METABASE_ID}.json`;
-                ENDPOINTS[2] = `https://metabase.spyne.ai/public/question/${METABASE_ID}/query`;
+            filteredData = allData.filter(row => {
+                return (!team || row[1] === team) &&
+                       (!enterprise || row[3] === enterprise) &&
+                       (!month || row[10] === month);
+            });
 
-                document.getElementById('dataInputModal').style.display = 'none';
-                loadDashboard();
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
+            renderDashboard();
         }
 
-        function showSuccess(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.style.background = 'rgba(74, 222, 128, 0.1)';
-            errorDiv.style.borderColor = 'rgba(74, 222, 128, 0.3)';
-            errorDiv.style.color = '#4ade80';
-            errorDiv.textContent = '✓ ' + message;
-            errorDiv.style.display = 'block';
-            
+        function resetFilters() {
+            document.getElementById('teamFilter').value = '';
+            document.getElementById('enterpriseFilter').value = '';
+            document.getElementById('monthFilter').value = '';
+            filteredData = allData;
+            renderDashboard();
+        }
+
+        // Show messages
+        function showMessage(message, type) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.innerHTML = `<div class="${type}">${message}</div>`;
             setTimeout(() => {
-                errorDiv.style.display = 'none';
-                errorDiv.style.background = '';
-                errorDiv.style.borderColor = '';
-                errorDiv.style.color = '';
-            }, 4000);
+                messageBox.innerHTML = '';
+            }, 5000);
         }
 
-        // Load dashboard on page load
-        window.addEventListener('load', loadDashboard);
+        // Calculate KPIs
+        function calculateKPIs() {
+            const distinctTeams = new Set(filteredData.map(r => r[1]).filter(Boolean)).size;
+            const distinctEnterprises = new Set(filteredData.map(r => r[3]).filter(Boolean)).size;
+            const totalARR = filteredData.reduce((sum, r) => sum + (parseFloat(r[8]) || 0), 0);
+            const totalSkus = filteredData.reduce((sum, r) => sum + (parseFloat(r[11]) || 0), 0);
+
+            return {
+                distinctTeams,
+                distinctEnterprises,
+                totalARR,
+                totalSkus
+            };
+        }
+
+        // Get top enterprises by ARR
+        function getTopEnterprises(limit = 10) {
+            const enterprises = {};
+            
+            filteredData.forEach(row => {
+                const name = row[3];
+                const arr = parseFloat(row[8]) || 0;
+                
+                if (name) {
+                    enterprises[name] = (enterprises[name] || 0) + arr;
+                }
+            });
+
+            return Object.entries(enterprises)
+                .map(([name, arr]) => ({ name, arr }))
+                .sort((a, b) => b.arr - a.arr)
+                .slice(0, limit);
+        }
+
+        // Get month-wise data
+        function getMonthWiseData() {
+            const monthData = {};
+            
+            filteredData.forEach(row => {
+                const month = row[10];
+                const team = row[1];
+                const enterprise = row[3];
+                const skus = parseFloat(row[11]) || 0;
+                const images = parseFloat(row[12]) || 0;
+
+                if (month) {
+                    if (!monthData[month]) {
+                        monthData[month] = {
+                            month,
+                            skus: 0,
+                            images: 0,
+                            teams: new Set(),
+                            enterprises: new Set()
+                        };
+                    }
+                    monthData[month].skus += skus;
+                    monthData[month].images += images;
+                    if (team) monthData[month].teams.add(team);
+                    if (enterprise) monthData[month].enterprises.add(enterprise);
+                }
+            });
+
+            return Object.values(monthData).sort((a, b) => new Date(a.month) - new Date(b.month));
+        }
+
+        // Render dashboard
+        function renderDashboard() {
+            const kpis = calculateKPIs();
+            const topEnterprises = getTopEnterprises();
+            const monthWiseData = getMonthWiseData();
+
+            let html = `
+                <div class="dashboard">
+                    <!-- KPI Cards -->
+                    <div class="card kpi-card">
+                        <div class="kpi-icon">👥</div>
+                        <div class="kpi-label">Distinct Teams</div>
+                        <div class="kpi-value">${kpis.distinctTeams}</div>
+                    </div>
+
+                    <div class="card kpi-card">
+                        <div class="kpi-icon">🏢</div>
+                        <div class="kpi-label">Distinct Enterprises</div>
+                        <div class="kpi-value">${kpis.distinctEnterprises}</div>
+                    </div>
+
+                    <div class="card kpi-card">
+                        <div class="kpi-icon">💰</div>
+                        <div class="kpi-label">Total Contracted ARR</div>
+                        <div class="kpi-value">$${(kpis.totalARR / 1000000).toFixed(2)}M</div>
+                        <div class="metric-small">${kpis.totalARR.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}</div>
+                    </div>
+
+                    <div class="card kpi-card">
+                        <div class="kpi-icon">📦</div>
+                        <div class="kpi-label">Total SKU Count</div>
+                        <div class="kpi-value">${kpis.totalSkus.toLocaleString()}</div>
+                    </div>
+
+                    <!-- Top Enterprises by ARR -->
+                    <div class="card table-card">
+                        <div class="chart-title">Top 10 Enterprises by Contracted ARR</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Enterprise Name</th>
+                                    <th>Contracted ARR</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${topEnterprises.map((ent, idx) => `
+                                    <tr>
+                                        <td><span class="rank">${idx + 1}</span></td>
+                                        <td>${ent.name}</td>
+                                        <td><strong>$${ent.arr.toLocaleString('en-US', {maximumFractionDigits: 2})}</strong></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Month-wise SKU Count Chart -->
+                    <div class="card chart-card">
+                        <div class="chart-title">📈 Monthly SKU Count Trend</div>
+                        <div class="chart-container">
+                            <canvas id="skuChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Month-wise Image Count Chart -->
+                    <div class="card chart-card">
+                        <div class="chart-title">🖼️ Monthly Image Count Trend</div>
+                        <div class="chart-container">
+                            <canvas id="imageChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Summary Table -->
+                    <div class="card table-card">
+                        <div class="chart-title">Monthly Summary</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>SKU Count</th>
+                                    <th>Image Count</th>
+                                    <th>Teams</th>
+                                    <th>Enterprises</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${monthWiseData.map(mData => `
+                                    <tr>
+                                        <td><strong>${mData.month}</strong></td>
+                                        <td>${mData.skus.toLocaleString()}</td>
+                                        <td>${mData.images.toLocaleString()}</td>
+                                        <td>${mData.teams.size}</td>
+                                        <td>${mData.enterprises.size}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('dashboardContent').innerHTML = html;
+
+            // Render charts
+            renderSkuChart(monthWiseData);
+            renderImageChart(monthWiseData);
+        }
+
+        // Render SKU Chart
+        function renderSkuChart(monthWiseData) {
+            const ctx = document.getElementById('skuChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: monthWiseData.map(m => m.month),
+                    datasets: [{
+                        label: 'SKU Count',
+                        data: monthWiseData.map(m => m.skus),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                font: { size: 12, weight: 'bold' },
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 11 } },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        x: {
+                            ticks: { font: { size: 11 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Image Chart
+        function renderImageChart(monthWiseData) {
+            const ctx = document.getElementById('imageChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: monthWiseData.map(m => m.month),
+                    datasets: [{
+                        label: 'Image Count',
+                        data: monthWiseData.map(m => m.images),
+                        borderColor: '#764ba2',
+                        backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#764ba2',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                font: { size: 12, weight: 'bold' },
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 11 } },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        x: {
+                            ticks: { font: { size: 11 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize dashboard
+        fetchData();
     </script>
 </body>
 </html>
