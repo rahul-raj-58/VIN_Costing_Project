@@ -340,17 +340,107 @@
         let allData = [];
         let filteredData = [];
 
-        const METABASE_URL = 'https://metabase.spyne.ai/api/public/card/1d6e0c0d-ad06-4cfe-8308-ddff05187eca/query';
+        const CARD_UUID = '1d6e0c0d-ad06-4cfe-8308-ddff05187eca';
+        const METABASE_BASE_URL = 'https://metabase.spyne.ai';
 
-        // Fetch data from Metabase
+        // Fetch data from Metabase Public API
         async function fetchData() {
             try {
+                console.log('Fetching data from Metabase...');
+                
+                // Use the public API endpoint
+                const METABASE_URL = `${METABASE_BASE_URL}/api/public/card/${CARD_UUID}/query`;
+                
                 const response = await fetch(METABASE_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    mode: 'cors'
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    // Try alternative endpoint if first fails
+                    console.log('Trying alternative endpoint...');
+                    return fetchDataAlternative();
+                }
+
+                const result = await response.json();
+                console.log('Data received:', result);
+                
+                allData = result.data?.rows || result.rows || [];
+                
+                if (allData.length === 0) {
+                    throw new Error('No data rows found in response');
+                }
+
+                filteredData = allData;
+                populateFilters();
+                renderDashboard();
+                showMessage('✅ Data loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return fetchDataAlternative();
+            }
+        }
+
+        // Alternative fetch method using direct query endpoint
+        async function fetchDataAlternative() {
+            try {
+                console.log('Using alternative API endpoint...');
+                const METABASE_URL = `${METABASE_BASE_URL}/api/public/card/${CARD_UUID}`;
+                
+                const response = await fetch(METABASE_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    mode: 'cors'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const cardData = await response.json();
+                console.log('Card data:', cardData);
+                
+                // If we got card data, try to fetch with actual query
+                if (cardData.id) {
+                    return fetchWithQueryParams(cardData);
+                }
+                
+                allData = cardData.data?.rows || cardData.rows || [];
+                
+                if (allData.length === 0) {
+                    throw new Error('No data available');
+                }
+
+                filteredData = allData;
+                populateFilters();
+                renderDashboard();
+                showMessage('✅ Data loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Alternative fetch failed:', error);
+                showMetabaseEmbed();
+            }
+        }
+
+        // Fetch with query parameters
+        async function fetchWithQueryParams(cardData) {
+            try {
+                console.log('Fetching with query params...');
+                const queryUrl = `${METABASE_BASE_URL}/api/public/card/${CARD_UUID}/query?parameters=[]`;
+                
+                const response = await fetch(queryUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({})
+                    mode: 'cors',
+                    body: JSON.stringify({ parameters: [] })
                 });
 
                 if (!response.ok) {
@@ -358,30 +448,44 @@
                 }
 
                 const result = await response.json();
-                allData = result.data?.rows || [];
+                console.log('Query result:', result);
+                
+                allData = result.data?.rows || result.rows || [];
                 
                 if (allData.length === 0) {
-                    showMessage('No data available from Metabase', 'error');
-                    return;
+                    throw new Error('No data in query response');
                 }
 
                 filteredData = allData;
                 populateFilters();
                 renderDashboard();
+                showMessage('✅ Data loaded successfully!', 'success');
             } catch (error) {
-                console.error('Error fetching data:', error);
-                showMessage(`Error loading data: ${error.message}. Please check your Metabase connection.`, 'error');
-                document.getElementById('dashboardContent').innerHTML = `
-                    <div class="error">
-                        <strong>⚠️ Connection Error</strong><br>
-                        Unable to fetch data from Metabase. Make sure:<br>
-                        1. The Metabase instance is accessible<br>
-                        2. The public link is valid<br>
-                        3. Your browser allows cross-origin requests<br>
-                        Error: ${error.message}
-                    </div>
-                `;
+                console.error('Query params fetch failed:', error);
+                showMetabaseEmbed();
             }
+        }
+
+        // Fallback: Embed Metabase directly
+        function showMetabaseEmbed() {
+            console.log('Falling back to Metabase embed...');
+            document.getElementById('dashboardContent').innerHTML = `
+                <div class="card" style="padding: 0; border: none;">
+                    <div style="position: relative; width: 100%; padding-bottom: 66.66%; height: 0; overflow: hidden;">
+                        <iframe 
+                            src="${METABASE_BASE_URL}/public/question/${CARD_UUID}"
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; border-radius: 12px;"
+                            allowfullscreen
+                            webkitallowfullscreen
+                            mozallowfullscreen>
+                        </iframe>
+                    </div>
+                </div>
+                <div class="success" style="margin-top: 20px;">
+                    <strong>ℹ️ Note:</strong> Metabase data is being loaded directly from your public link. 
+                    The embedded view shows real-time data from your query.
+                </div>
+            `;
         }
 
         // Populate filter dropdowns
