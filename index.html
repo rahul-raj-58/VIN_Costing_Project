@@ -965,11 +965,23 @@
             showMessage('✅ Data exported!', 'success');
         }
 
-        // Load initial sample data on page load
-        window.addEventListener('load', () => {
-            parseAndRender(sampleCSV);
-            showMessage('✅ Sample data loaded! Click "Load Your Data" to add your own.', 'info');
-        });
+        // Load data from Metabase on page load
+        async function loadMetabaseData() {
+            const metabaseUrl = 'https://metabase.spyne.ai/public/question/1d6e0c0d-ad06-4cfe-8308-ddff05187eca.csv';
+            try {
+                const response = await fetch(metabaseUrl);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const csv = await response.text();
+                parseAndRender(csv);
+                showMessage('✅ Data loaded from Metabase!', 'success');
+            } catch (error) {
+                console.error('Failed to load Metabase data:', error);
+                showMessage('⚠️ Using sample data. Click "Load Your Data" to add your Metabase CSV.', 'info');
+                parseAndRender(sampleCSV);
+            }
+        }
+
+        window.addEventListener('load', loadMetabaseData);
     </script>
 </body>
 </html>
