@@ -298,9 +298,51 @@
     <div class="dashboard-header">
         <div class="header-content">
             <div class="header-title">📊 Enterprise Analytics Dashboard</div>
-            <button class="refresh-btn" onclick="loadDashboard()">
-                🔄 Refresh Data
-            </button>
+            <div style="display: flex; gap: 12px;">
+                <button class="refresh-btn" onclick="loadDashboard()">
+                    🔄 Refresh Data
+                </button>
+                <button class="refresh-btn" onclick="document.getElementById('dataInputModal').style.display='flex'" style="background: rgba(252, 176, 64, 0.1); border-color: rgba(252, 176, 64, 0.3); color: #fcb040;">
+                    📥 Load Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Input Modal -->
+    <div id="dataInputModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: rgba(20, 20, 20, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #fff; margin: 0;">Load Data</h2>
+                <button onclick="document.getElementById('dataInputModal').style.display='none'" style="background: none; border: none; color: #888; font-size: 20px; cursor: pointer;">✕</button>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #00d9ff; margin-bottom: 12px;">Option 1: Paste JSON Data</h3>
+                <textarea id="jsonDataInput" placeholder='Paste your JSON array here. Example: [{"enterprise_name": "Acme Corp", "contracted_arr": 100000}, ...]' style="width: 100%; height: 120px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; border-radius: 6px; font-family: monospace; font-size: 12px;"></textarea>
+                <button onclick="loadJSONData()" style="margin-top: 12px; padding: 10px 20px; background: rgba(0, 217, 255, 0.1); border: 1px solid rgba(0, 217, 255, 0.3); color: #00d9ff; border-radius: 6px; cursor: pointer;">Load JSON</button>
+            </div>
+
+            <div style="margin-bottom: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <h3 style="color: #00d9ff; margin-bottom: 12px;">Option 2: Upload CSV File</h3>
+                <input type="file" id="csvFileInput" accept=".csv" style="padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; border-radius: 6px; width: 100%;">
+                <button onclick="loadCSVData()" style="margin-top: 12px; padding: 10px 20px; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); color: #4ade80; border-radius: 6px; cursor: pointer;">Load CSV</button>
+            </div>
+
+            <div style="margin-bottom: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <h3 style="color: #00d9ff; margin-bottom: 12px;">Option 3: Direct Metabase Link</h3>
+                <input type="text" id="metabaseUrl" placeholder="https://metabase.spyne.ai/public/question/YOUR_ID" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; border-radius: 6px;" value="https://metabase.spyne.ai/public/question/1d6e0c0d-ad06-4cfe-8308-ddff05187eca">
+                <button onclick="extractMetabaseID()" style="margin-top: 12px; padding: 10px 20px; background: rgba(252, 176, 64, 0.1); border: 1px solid rgba(252, 176, 64, 0.3); color: #fcb040; border-radius: 6px; cursor: pointer; width: 100%;">Extract & Load from URL</button>
+            </div>
+
+            <div style="color: #888; font-size: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <p><strong>Troubleshooting Tips:</strong></p>
+                <ul style="margin: 8px 0; padding-left: 20px;">
+                    <li>If API fails, export your Metabase question as CSV and upload here</li>
+                    <li>Or copy the question results as JSON</li>
+                    <li>Check that your Metabase server allows cross-origin requests</li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -435,8 +477,14 @@
     </div>
 
     <script>
-        const METABASE_URL = 'https://metabase.spyne.ai/public/question/1d6e0c0d-ad06-4cfe-8308-ddff05187eca';
-        const API_ENDPOINT = 'https://metabase.spyne.ai/api/public/card/1d6e0c0d-ad06-4cfe-8308-ddff05187eca/query';
+        let METABASE_ID = '1d6e0c0d-ad06-4cfe-8308-ddff05187eca';
+        
+        // Multiple endpoints to try
+        let ENDPOINTS = [
+            `https://metabase.spyne.ai/api/public/card/${METABASE_ID}/query`,
+            `https://metabase.spyne.ai/public/question/${METABASE_ID}.json`,
+            `https://metabase.spyne.ai/public/question/${METABASE_ID}/query`
+        ];
 
         let allData = [];
         let charts = {};
@@ -460,27 +508,56 @@
         }
 
         async function fetchData() {
-            try {
-                const response = await fetch(API_ENDPOINT, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
+            let lastError = null;
+
+            // Try multiple methods
+            for (let endpoint of ENDPOINTS) {
+                try {
+                    console.log('Trying endpoint:', endpoint);
+                    const response = await fetch(endpoint, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'omit'
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('Success with endpoint:', endpoint, data);
+                        
+                        // Parse response based on structure
+                        if (data.data) {
+                            allData = Array.isArray(data.data) ? data.data : data.data.rows || [];
+                        } else if (data.rows) {
+                            allData = data.rows;
+                        } else if (Array.isArray(data)) {
+                            allData = data;
+                        } else {
+                            console.warn('Unexpected data structure:', data);
+                            allData = [];
+                        }
+
+                        if (allData.length > 0) {
+                            return; // Success
+                        }
                     }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.status}`);
+                } catch (error) {
+                    console.warn('Endpoint failed:', endpoint, error.message);
+                    lastError = error;
                 }
+            }
 
-                const data = await response.json();
-                allData = data.data || data.rows || [];
-
-                if (allData.length === 0) {
-                    throw new Error('No data returned from Metabase. Please verify the public link is accessible.');
-                }
-            } catch (error) {
-                console.error('Fetch error:', error);
-                throw new Error(`Failed to fetch from Metabase: ${error.message}`);
+            // If all endpoints failed, provide detailed error
+            if (allData.length === 0) {
+                throw new Error(
+                    `Unable to fetch data from Metabase. Please ensure:\n` +
+                    `1. The public link is accessible: ${METABASE_URL}\n` +
+                    `2. You're not blocked by CORS\n` +
+                    `3. The Metabase server is online\n\n` +
+                    `Last error: ${lastError?.message || 'Unknown'}`
+                );
             }
         }
 
@@ -974,6 +1051,117 @@
         function showError(message) {
             document.getElementById('error').textContent = '⚠️ ' + message;
             document.getElementById('error').style.display = 'block';
+        }
+
+        function loadJSONData() {
+            try {
+                const jsonText = document.getElementById('jsonDataInput').value.trim();
+                if (!jsonText) {
+                    alert('Please paste JSON data');
+                    return;
+                }
+                
+                allData = JSON.parse(jsonText);
+                if (!Array.isArray(allData)) {
+                    throw new Error('JSON must be an array of objects');
+                }
+                
+                if (allData.length === 0) {
+                    throw new Error('JSON array is empty');
+                }
+                
+                document.getElementById('dataInputModal').style.display = 'none';
+                processAndVisualize();
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                showSuccess(`Loaded ${allData.length} records from JSON`);
+            } catch (error) {
+                alert('Error loading JSON: ' + error.message);
+            }
+        }
+
+        function loadCSVData() {
+            const file = document.getElementById('csvFileInput').files[0];
+            if (!file) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const csv = e.target.result;
+                    const lines = csv.trim().split('\n');
+                    
+                    if (lines.length < 2) {
+                        throw new Error('CSV must have headers and at least one row');
+                    }
+
+                    const headers = lines[0].split(',').map(h => h.trim());
+                    allData = [];
+
+                    for (let i = 1; i < lines.length; i++) {
+                        const values = lines[i].split(',').map(v => v.trim());
+                        const row = {};
+                        
+                        headers.forEach((header, index) => {
+                            let value = values[index] || '';
+                            // Try to parse as number
+                            if (value && !isNaN(value) && value !== '') {
+                                value = parseFloat(value);
+                            }
+                            row[header] = value;
+                        });
+                        
+                        allData.push(row);
+                    }
+
+                    document.getElementById('dataInputModal').style.display = 'none';
+                    processAndVisualize();
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                    showSuccess(`Loaded ${allData.length} records from CSV`);
+                } catch (error) {
+                    alert('Error loading CSV: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function extractMetabaseID() {
+            try {
+                const url = document.getElementById('metabaseUrl').value.trim();
+                const match = url.match(/\/([a-f0-9\-]{36})\/?$/);
+                
+                if (!match) {
+                    throw new Error('Invalid Metabase URL format');
+                }
+
+                const questionId = match[1];
+                METABASE_ID = questionId;
+                ENDPOINTS[0] = `https://metabase.spyne.ai/api/public/card/${METABASE_ID}/query`;
+                ENDPOINTS[1] = `https://metabase.spyne.ai/public/question/${METABASE_ID}.json`;
+                ENDPOINTS[2] = `https://metabase.spyne.ai/public/question/${METABASE_ID}/query`;
+
+                document.getElementById('dataInputModal').style.display = 'none';
+                loadDashboard();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function showSuccess(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.style.background = 'rgba(74, 222, 128, 0.1)';
+            errorDiv.style.borderColor = 'rgba(74, 222, 128, 0.3)';
+            errorDiv.style.color = '#4ade80';
+            errorDiv.textContent = '✓ ' + message;
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+                errorDiv.style.background = '';
+                errorDiv.style.borderColor = '';
+                errorDiv.style.color = '';
+            }, 4000);
         }
 
         // Load dashboard on page load
