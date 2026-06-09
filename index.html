@@ -427,6 +427,7 @@
         let filteredData = [];
         const CARD_UUID = '1d6e0c0d-ad06-4cfe-8308-ddff05187eca';
         const METABASE_BASE = 'https://metabase.spyne.ai';
+        const CSV_URL = `${METABASE_BASE}/public/question/${CARD_UUID}.csv`;
 
         // Show message
         function showMessage(message, type = 'success') {
@@ -437,17 +438,56 @@
             setTimeout(() => box.innerHTML = '', 5000);
         }
 
-        // Fetch data from Metabase
+        // Parse CSV data
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length === 0) return [];
+            
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const rows = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+                
+                // Handle quoted fields
+                const cells = [];
+                let current = '';
+                let insideQuote = false;
+                
+                for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    const nextChar = line[j + 1];
+                    
+                    if (char === '"') {
+                        if (insideQuote && nextChar === '"') {
+                            current += '"';
+                            j++;
+                        } else {
+                            insideQuote = !insideQuote;
+                        }
+                    } else if (char === ',' && !insideQuote) {
+                        cells.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                cells.push(current.trim());
+                
+                rows.push(cells);
+            }
+            
+            return rows;
+        }
+
+        // Fetch data from Metabase CSV
         async function fetchData() {
             try {
-                console.log('🚀 Fetching data from Metabase...');
+                console.log('🚀 Fetching data from Metabase CSV...');
+                console.log('CSV URL:', CSV_URL);
                 
-                const url = `${METABASE_BASE}/api/public/card/${CARD_UUID}/query`;
-                
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
+                const response = await fetch(CSV_URL);
 
                 console.log('Response Status:', response.status);
 
@@ -455,76 +495,45 @@
                     throw new Error(`HTTP ${response.status}`);
                 }
 
-                const result = await response.json();
-                console.log('Data received:', result);
+                const csvText = await response.text();
+                console.log('CSV Data length:', csvText.length);
+                console.log('First 500 chars:', csvText.substring(0, 500));
 
-                allData = result.data?.rows || result.rows || [];
+                allData = parseCSV(csvText);
 
                 if (allData.length === 0) {
-                    throw new Error('No data rows found');
+                    throw new Error('No data rows found in CSV');
                 }
 
-                console.log(`✅ Loaded ${allData.length} records`);
-                filteredData = [...allData];
-                populateFilters();
-                renderDashboard();
-                showMessage('✅ Dashboard loaded successfully!', 'success');
-
-            } catch (error) {
-                console.error('❌ Error:', error);
-                tryAlternativeApi();
-            }
-        }
-
-        // Try alternative API approach
-        async function tryAlternativeApi() {
-            try {
-                console.log('Trying alternative Metabase API endpoint...');
+                console.log(`✅ Loaded ${allData.length} records from CSV`);
+                console.log('Sample row:', allData[0]);
                 
-                const url = `${METABASE_BASE}/api/public/card/${CARD_UUID}/query`;
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ parameters: [] })
-                });
-
-                if (!response.ok) throw new Error('Alternative API failed');
-
-                const result = await response.json();
-                console.log('Data received via POST:', result);
-
-                allData = result.data?.rows || result.rows || [];
-
-                if (allData.length === 0) {
-                    throw new Error('No data in response');
-                }
-
-                console.log(`✅ Loaded ${allData.length} records via alternative method`);
                 filteredData = [...allData];
                 populateFilters();
                 renderDashboard();
-                showMessage('✅ Dashboard loaded successfully!', 'success');
+                showMessage(`✅ Dashboard loaded successfully! (${allData.length} records)`, 'success');
 
             } catch (error) {
-                console.error('❌ Alternative API failed:', error);
-                showApiError();
+                console.error('❌ Error fetching CSV:', error);
+                showApiError(error.message);
             }
         }
 
         // Show API Error
-        function showApiError() {
+        function showApiError(errorMsg = '') {
             document.getElementById('dashboardContent').innerHTML = `
                 <div class="card" style="grid-column: 1/-1; padding: 40px; text-align: center;">
                     <h2 style="color: #ef4444; margin-bottom: 16px;">⚠️ Connection Error</h2>
                     <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                        Unable to connect to Metabase API. Please verify:
+                        Unable to fetch data from Metabase CSV. Please verify:
                     </p>
-                    <ul style="color: var(--text-secondary); text-align: left; display: inline-block; margin-bottom: 20px;">
-                        <li>✓ Metabase instance is online</li>
-                        <li>✓ Public link UUID is correct: ${CARD_UUID}</li>
+                    <ul style="color: var(--text-secondary); text-align: left; display: inline-block; margin-bottom: 20px; font-size: 0.9em;">
+                        <li>✓ Metabase instance is online: <a href="${METABASE_BASE}" target="_blank" style="color: #818cf8;">${METABASE_BASE}</a></li>
+                        <li>✓ Public CSV URL: <a href="${CSV_URL}" target="_blank" style="color: #818cf8;">View CSV</a></li>
                         <li>✓ Network connectivity</li>
-                        <li>✓ Browser CORS settings</li>
+                        <li>✓ CSV export is enabled in Metabase</li>
                     </ul>
+                    ${errorMsg ? `<p style="color: #fca5a5; margin: 15px 0; font-size: 0.85em; font-family: monospace;">Error: ${errorMsg}</p>` : ''}
                     <button class="btn btn-primary" onclick="fetchData()" style="margin-top: 20px;">🔄 Try Again</button>
                 </div>
             `;
