@@ -332,6 +332,8 @@
                 </div>
                 <div class="controls">
                     <button onclick="fetchData()">🔄 Refresh Data</button>
+                    <button onclick="document.getElementById('fileUpload').click()">📁 Upload CSV</button>
+                    <input type="file" id="fileUpload" accept=".csv" style="display: none;" onchange="handleFileUpload(event)">
                     <button onclick="clearCache()">🗑️ Clear Cache</button>
                 </div>
             </div>
@@ -454,19 +456,18 @@
     <script>
         const CACHE_KEY = 'metabase_team_costing_data';
         const CACHE_EXPIRY = 3600000; // 1 hour
-        const CSV_URL = 'https://metabase.spyne.ai/question/12184-team-level-costing.csv';
         
-        // CORS Proxies to try
-        const CORS_PROXIES = [
-            'https://cors-anywhere.herokuapp.com/',
-            'https://api.allorigins.win/raw?url=',
-            'https://thingproxy.freeboard.io/fetch/',
+        // Try multiple URL formats
+        const CSV_URLS = [
+            'https://metabase.spyne.ai/question/12184-team-level-costing.csv',
+            'https://metabase.spyne.ai/api/card/12184/query/csv',
+            'https://metabase.spyne.ai/api/public/card/12184/query/csv',
         ];
 
         let charts = {};
         let timerInterval = null;
         let retryCount = 0;
-        const MAX_RETRIES = 3;
+        const MAX_RETRIES = CSV_URLS.length;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -474,7 +475,7 @@
             if (cachedData) {
                 showLoadingIndicator(false);
                 displayData(cachedData);
-                showMessage('success', 'Data loaded from cache');
+                showMessage('success', 'Data loaded from cache (expires in 1 hour)');
             }
         });
 
@@ -538,33 +539,100 @@
             location.reload();
         }
 
-        async function fetchData() {
-            showLoadingIndicator(true, 30);
+        async function fetchData(urlIndex = 0) {
+            showLoadingIndicator(true, 60);
             showMessage('', '');
 
             try {
-                const response = await fetch(CSV_URL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                let csv;
+                let lastError;
 
-                const csv = await response.text();
+                // Try each URL format
+                for (let i = urlIndex; i < CSV_URLS.length; i++) {
+                    const url = CSV_URLS[i];
+                    console.log(`Attempting URL ${i + 1}/${CSV_URLS.length}: ${url}`);
+
+                    try {
+                        const response = await fetch(url, {
+                            headers: {
+                                'Accept': 'text/csv',
+                            },
+                            mode: 'cors',
+                        });
+
+                        if (response.ok) {
+                            csv = await response.text();
+                            
+                            // Verify it's valid CSV
+                            if (csv.includes(',') || csv.includes('\n')) {
+                                console.log('✓ Data fetched successfully');
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        lastError = e;
+                        console.warn(`URL ${i + 1} failed:`, e.message);
+                    }
+                }
+
+                if (!csv) {
+                    throw new Error(`All URL formats failed. Last error: ${lastError?.message || 'Unknown'}`);
+                }
+
+                // Parse CSV
                 const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
 
                 if (parsed.errors.length > 0) {
-                    throw new Error('CSV parsing error');
+                    throw new Error('CSV parsing error: ' + parsed.errors[0].message);
                 }
 
                 const data = parsed.data.filter(row => Object.keys(row).some(key => row[key]));
+
+                if (data.length === 0) {
+                    throw new Error('No data found in CSV');
+                }
 
                 setCachedData(data);
                 displayData(data);
                 showLoadingIndicator(false);
                 showMessage('success', `✓ Loaded ${data.length} records successfully`);
+                retryCount = 0;
 
             } catch (error) {
-                showLoadingIndicator(false);
-                showMessage('error', `Error loading data: ${error.message}`);
                 console.error('Fetch error:', error);
+                showLoadingIndicator(false);
+                showMessage('error', `✗ ${error.message} <br><br>Try: 1) Upload CSV file 2) Paste CSV data directly`);
             }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const csv = e.target.result;
+                    const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+
+                    if (parsed.errors.length > 0) {
+                        throw new Error('CSV parsing error');
+                    }
+
+                    const data = parsed.data.filter(row => Object.keys(row).some(key => row[key]));
+
+                    if (data.length === 0) {
+                        throw new Error('No data found in CSV');
+                    }
+
+                    setCachedData(data);
+                    displayData(data);
+                    showMessage('success', `✓ Uploaded ${data.length} records successfully`);
+                } catch (error) {
+                    showMessage('error', `✗ File upload error: ${error.message}`);
+                }
+            };
+            reader.readAsText(file);
         }
 
         function displayData(data) {
