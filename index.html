@@ -455,9 +455,18 @@
         const CACHE_KEY = 'metabase_team_costing_data';
         const CACHE_EXPIRY = 3600000; // 1 hour
         const CSV_URL = 'https://metabase.spyne.ai/question/12184-team-level-costing.csv';
+        
+        // CORS Proxies to try
+        const CORS_PROXIES = [
+            'https://cors-anywhere.herokuapp.com/',
+            'https://api.allorigins.win/raw?url=',
+            'https://thingproxy.freeboard.io/fetch/',
+        ];
 
         let charts = {};
         let timerInterval = null;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
