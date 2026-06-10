@@ -320,6 +320,119 @@
                 grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             }
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid #00ffc8;
+            border-radius: 12px;
+            margin: 5% auto;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 0 40px rgba(0, 255, 200, 0.3);
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(0, 255, 200, 0.3);
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            color: #00ffc8;
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .close-btn {
+            color: #888;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-btn:hover {
+            color: #00ffc8;
+        }
+
+        #csvTextarea {
+            width: 100%;
+            height: 300px;
+            padding: 15px;
+            background: rgba(15, 15, 30, 0.8);
+            border: 1px solid rgba(0, 255, 200, 0.3);
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        #csvTextarea:focus {
+            outline: none;
+            border-color: #00ffc8;
+            box-shadow: 0 0 10px rgba(0, 255, 200, 0.2);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .kpi-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
     </style>
 </head>
 <body>
@@ -333,6 +446,7 @@
                 <div class="controls">
                     <button onclick="fetchData()">🔄 Refresh Data</button>
                     <button onclick="document.getElementById('fileUpload').click()">📁 Upload CSV</button>
+                    <button onclick="showPasteModal()">📋 Paste CSV</button>
                     <input type="file" id="fileUpload" accept=".csv" style="display: none;" onchange="handleFileUpload(event)">
                     <button onclick="clearCache()">🗑️ Clear Cache</button>
                 </div>
@@ -426,7 +540,10 @@
 
             <!-- Data Table -->
             <div class="table-container">
-                <div class="chart-title">Team Details</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="chart-title">Team Details (All Records)</div>
+                    <div id="paginationInfo" style="font-size: 12px; color: #888;"></div>
+                </div>
                 <table id="dataTable">
                     <thead>
                         <tr>
@@ -443,6 +560,15 @@
                     </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding: 15px; background: rgba(0, 255, 200, 0.05); border-radius: 6px;">
+                    <button id="prevBtn" onclick="goToPage('prev')" style="padding: 8px 15px;">← Previous</button>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span>Page</span>
+                        <input type="number" id="currentPage" value="1" min="1" max="1" style="width: 50px; padding: 5px; background: rgba(15, 15, 30, 0.8); border: 1px solid #00ffc8; color: #00ffc8; border-radius: 4px; text-align: center;">
+                        <button onclick="jumpToPage()" style="padding: 8px 15px; font-size: 12px;">Go</button>
+                    </div>
+                    <button id="nextBtn" onclick="goToPage('next')" style="padding: 8px 15px;">Next →</button>
+                </div>
             </div>
         </div>
 
@@ -450,6 +576,22 @@
             <div class="empty-state-icon">📈</div>
             <h2>Click "Refresh Data" to load your dashboard</h2>
             <p style="margin-top: 10px;">Data will be cached for faster loading</p>
+        </div>
+    </div>
+
+    <!-- Paste CSV Modal -->
+    <div id="pasteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Paste CSV Data</h2>
+                <span class="close-btn" onclick="closePasteModal()">&times;</span>
+            </div>
+            <p style="color: #888; margin-bottom: 15px;">Paste your CSV data below (columns separated by commas)</p>
+            <textarea id="csvTextarea" placeholder="team_id,team_name,enterprise_id,..."></textarea>
+            <div class="modal-actions">
+                <button onclick="closePasteModal()" style="background: rgba(0, 255, 200, 0.2); color: #00ffc8;">Cancel</button>
+                <button onclick="handlePasteCSV()">✓ Load Data</button>
+            </div>
         </div>
     </div>
 
@@ -635,12 +777,62 @@
             reader.readAsText(file);
         }
 
+        function showPasteModal() {
+            const modal = document.getElementById('pasteModal');
+            modal.style.display = 'block';
+        }
+
+        function closePasteModal() {
+            const modal = document.getElementById('pasteModal');
+            modal.style.display = 'none';
+        }
+
+        function handlePasteCSV() {
+            const csvText = document.getElementById('csvTextarea').value.trim();
+            if (!csvText) {
+                showMessage('error', '✗ Please paste CSV data');
+                return;
+            }
+
+            try {
+                const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+
+                if (parsed.errors.length > 0) {
+                    throw new Error('CSV parsing error: ' + parsed.errors[0].message);
+                }
+
+                const data = parsed.data.filter(row => Object.keys(row).some(key => row[key]));
+
+                if (data.length === 0) {
+                    throw new Error('No data found in CSV');
+                }
+
+                setCachedData(data);
+                displayData(data);
+                closePasteModal();
+                showMessage('success', `✓ Pasted ${data.length} records successfully`);
+            } catch (error) {
+                showMessage('error', `✗ CSV error: ${error.message}`);
+            }
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('pasteModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
         function displayData(data) {
             if (!data || data.length === 0) {
                 document.getElementById('emptyState').style.display = 'block';
                 document.getElementById('content').style.display = 'none';
                 return;
             }
+
+            // Store globally for pagination
+            window.lastLoadedData = data;
+            document.getElementById('currentPage').value = 1;
 
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('content').style.display = 'block';
@@ -668,7 +860,7 @@
         }
 
         function updateCharts(data) {
-            // ARR by Enterprise
+            // ARR by Enterprise - Show top 15
             const enterpriseARR = {};
             data.forEach(r => {
                 const enterprise = r['apld.enterprise_name'] || 'Unknown';
@@ -676,18 +868,22 @@
                 enterpriseARR[enterprise] = (enterpriseARR[enterprise] || 0) + arr;
             });
 
+            const topEnterprises = Object.entries(enterpriseARR)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 15);
+
             createChart('arrChart', 'bar', {
-                labels: Object.keys(enterpriseARR).slice(0, 10),
+                labels: topEnterprises.map(e => e[0]),
                 datasets: [{
                     label: 'Contracted ARR ($)',
-                    data: Object.values(enterpriseARR).slice(0, 10),
+                    data: topEnterprises.map(e => e[1]),
                     backgroundColor: 'rgba(0, 255, 200, 0.6)',
                     borderColor: '#00ffc8',
                     borderWidth: 2
                 }]
             });
 
-            // Cost Analysis
+            // Cost Analysis - Show top 12
             const costData = data.filter(r => r['cost_per_vin'] && r['cost_per_image']);
             const costByTeam = {};
             costData.forEach(r => {
@@ -699,12 +895,16 @@
                 costByTeam[team].image.push(parseFloat(r['cost_per_image']) || 0);
             });
 
-            const teams = Object.keys(costByTeam).slice(0, 8);
-            const avgVinCosts = teams.map(t => costByTeam[t].vin.reduce((a, b) => a + b, 0) / costByTeam[t].vin.length);
-            const avgImageCosts = teams.map(t => costByTeam[t].image.reduce((a, b) => a + b, 0) / costByTeam[t].image.length);
+            const topTeams = Object.entries(costByTeam)
+                .sort((a, b) => (b[1].vin.reduce((x, y) => x + y, 0) / b[1].vin.length) - (a[1].vin.reduce((x, y) => x + y, 0) / a[1].vin.length))
+                .slice(0, 12)
+                .map(e => e[0]);
+
+            const avgVinCosts = topTeams.map(t => costByTeam[t].vin.reduce((a, b) => a + b, 0) / costByTeam[t].vin.length);
+            const avgImageCosts = topTeams.map(t => costByTeam[t].image.reduce((a, b) => a + b, 0) / costByTeam[t].image.length);
 
             createChart('costChart', 'bar', {
-                labels: teams,
+                labels: topTeams,
                 datasets: [
                     {
                         label: 'Cost/VIN',
@@ -721,7 +921,7 @@
                 ]
             });
 
-            // Revenue Composition
+            // Revenue Composition - Uses all data
             const revenueByType = {
                 'Contracted ARR': data.reduce((sum, r) => sum + (parseFloat(r['contracted_arr']) || 0), 0),
                 'Rooftop ARR': data.reduce((sum, r) => sum + (parseFloat(r['rooftop_contracted_arr']) || 0), 0),
@@ -742,7 +942,7 @@
                 }]
             });
 
-            // SKU Count Distribution
+            // SKU Count Distribution - Uses all data
             const skuData = data.map(r => parseFloat(r['sku_count']) || 0).sort((a, b) => b - a);
             const skuBuckets = {
                 '0-10': skuData.filter(v => v <= 10).length,
@@ -762,7 +962,7 @@
                 }]
             });
 
-            // Monthly Trends
+            // Monthly Trends - Uses all data
             const monthlyData = {};
             data.forEach(r => {
                 const month = r['month'] || 'Unknown';
@@ -773,10 +973,10 @@
             const sortedMonths = Object.keys(monthlyData).sort();
 
             createChart('trendChart', 'line', {
-                labels: sortedMonths.slice(-12),
+                labels: sortedMonths.slice(-24),
                 datasets: [{
                     label: 'Monthly Product ARR',
-                    data: sortedMonths.slice(-12).map(m => monthlyData[m]),
+                    data: sortedMonths.slice(-24).map(m => monthlyData[m]),
                     borderColor: '#00ffc8',
                     backgroundColor: 'rgba(0, 255, 200, 0.1)',
                     borderWidth: 3,
@@ -785,7 +985,7 @@
                 }]
             });
 
-            // Stage Distribution
+            // Stage Distribution - Uses all data
             const stageData = {};
             data.forEach(r => {
                 const stage = r['apld.stage'] || 'Unknown';
@@ -844,9 +1044,17 @@
 
         function populateTable(data) {
             const tbody = document.getElementById('tableBody');
+            const pageSize = 50;
+            const currentPage = parseInt(document.getElementById('currentPage')?.value || 1);
+            
+            const startIdx = (currentPage - 1) * pageSize;
+            const endIdx = startIdx + pageSize;
+            const pageData = data.slice(startIdx, endIdx);
+            const totalPages = Math.ceil(data.length / pageSize);
+
             tbody.innerHTML = '';
 
-            data.slice(0, 20).forEach(row => {
+            pageData.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${row['apld.team_name'] || '-'}</td>
@@ -861,26 +1069,77 @@
                 `;
                 tbody.appendChild(tr);
             });
+
+            // Update pagination info
+            const paginationInfo = document.getElementById('paginationInfo');
+            if (paginationInfo) {
+                paginationInfo.innerHTML = `Showing ${startIdx + 1} to ${Math.min(endIdx, data.length)} of ${data.length} records | Page ${currentPage} of ${totalPages}`;
+            }
+
+            // Update pagination buttons
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+            document.getElementById('currentPage').max = totalPages;
+        }
+
+        function goToPage(direction) {
+            const currentInput = document.getElementById('currentPage');
+            let page = parseInt(currentInput.value || 1);
+            
+            if (direction === 'prev' && page > 1) page--;
+            if (direction === 'next') page++;
+            
+            currentInput.value = page;
+            populateTable(window.lastLoadedData);
+        }
+
+        function jumpToPage() {
+            populateTable(window.lastLoadedData);
         }
 
         function updateSummaryStats(data) {
             const stats = document.getElementById('summaryStats');
+            const totalRecords = data.length;
+            const uniqueStages = new Set(data.map(r => r['apld.stage'])).size;
+            const teamsWithProducts = data.filter(r => r['products']).length;
+            const maxSKU = Math.max(...data.map(r => parseFloat(r['sku_count']) || 0));
+            const maxImages = Math.max(...data.map(r => parseFloat(r['image-count']) || 0));
+            const totalSKU = data.reduce((sum, r) => sum + (parseFloat(r['sku_count']) || 0), 0);
+            const totalImages = data.reduce((sum, r) => sum + (parseFloat(r['image-count']) || 0), 0);
+            const avgARR = data.reduce((sum, r) => sum + (parseFloat(r['contracted_arr']) || 0), 0) / totalRecords;
+
             stats.innerHTML = `
                 <div class="stat">
-                    <div class="stat-value">${new Set(data.map(r => r['apld.stage'])).size}</div>
+                    <div class="stat-value">${totalRecords.toLocaleString()}</div>
+                    <div class="stat-label">Total Records</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${uniqueStages}</div>
                     <div class="stat-label">Unique Stages</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value">${data.filter(r => r['products']).length}</div>
+                    <div class="stat-value">${teamsWithProducts}</div>
                     <div class="stat-label">Teams w/ Products</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value">${data.reduce((max, r) => Math.max(max, parseFloat(r['sku_count']) || 0), 0).toFixed(0)}</div>
-                    <div class="stat-label">Max SKU Count</div>
+                    <div class="stat-value">${maxSKU.toLocaleString()}</div>
+                    <div class="stat-label">Max SKU</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value">${data.reduce((max, r) => Math.max(max, parseFloat(r['image-count']) || 0), 0).toFixed(0)}</div>
-                    <div class="stat-label">Max Image Count</div>
+                    <div class="stat-value">${totalSKU.toLocaleString()}</div>
+                    <div class="stat-label">Total SKUs</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${maxImages.toLocaleString()}</div>
+                    <div class="stat-label">Max Images</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${totalImages.toLocaleString()}</div>
+                    <div class="stat-label">Total Images</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">$${(avgARR / 1000).toFixed(1)}K</div>
+                    <div class="stat-label">Avg ARR</div>
                 </div>
             `;
         }
